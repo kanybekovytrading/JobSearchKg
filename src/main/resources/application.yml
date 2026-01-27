@@ -3,9 +3,9 @@ spring:
     name: work-kg-backend
 
   datasource:
-    url: jdbc:postgresql://postgres.railway.internal:5432/railway
+    url: jdbc:postgresql://postgres-duve.railway.internal:5432/railway
     username: postgres
-    password: sFPnSmXotgSIrwEQPExUxYFCvXLDDljL
+    password: KCLQJyHRjAzTHZvJJuRpQpnRFBmBaTJo
     driver-class-name: org.postgresql.Driver
 
   jpa:
