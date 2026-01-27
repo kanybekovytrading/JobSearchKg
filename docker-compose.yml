@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # База данных
+  postgres:
+    image: postgres:16-alpine
+    container_name: education-db
+    environment:
+      POSTGRES_DB: education_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Приложение
+  app:
+    build: .
+    container_name: education-app
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/education_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      FINIK_API_KEY: ${FINIK_API_KEY}
+      FINIK_ACCOUNT_ID: ${FINIK_ACCOUNT_ID}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:

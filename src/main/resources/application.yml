@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: work-kg-backend
+
+  datasource:
+    url: jdbc:postgresql://postgres.railway.internal:5432/railway
+    username: postgres
+    password: sFPnSmXotgSIrwEQPExUxYFCvXLDDljL
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  jackson:
+    time-zone: Asia/Bishkek
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+
+server:
+  port: 8080
+
+jwt:
+  secret: your-256-bit-secret-key-change-this-in-production
+  expiration: 86400000 # 24 hours
+  refresh-expiration: 604800000
+
+telegram:
+  bot:
+    token: 8573182345:AAEzuCaNlofsA6tSGNCE4mbQnh1Fz5TiKGg
+
+finik:
+  api:
+    url: https://api.finik.kg
+    key: YOUR_FINIK_API_KEY
+  webhook:
+    url: https://api.workkg.com/api/bot/payments/webhook
+
+logging:
+  level:
+    kg.workkg: DEBUG
+    org.hibernate.SQL: DEBUG
