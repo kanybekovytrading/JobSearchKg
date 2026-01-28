@@ -15,12 +15,12 @@ import java.util.List;
 public class OpenApiConfig {
         @Bean
         public OpenAPI openAPI() {
-//                Server server = new Server();
-//                server.setUrl("https://bilgirim-backend-production-8c49.up.railway.app");
-//                server.setDescription("API Server");
+                Server server = new Server();
+                server.setUrl("https://jobsearchkg-production.up.railway.app");
+                server.setDescription("API Server");
                 return new OpenAPI().addSecurityItem(new SecurityRequirement()
                         .addList("bearerAuth"))
-                    //    .servers(List.of(server))
+                        .servers(List.of(server))
                         .components(new Components()
                                 .addSecuritySchemes("bearerAuth", new SecurityScheme()
                                         .name("Authorization")
