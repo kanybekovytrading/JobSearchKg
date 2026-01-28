@@ -2,6 +2,7 @@ package job.search.kg.controller.user;
 
 import job.search.kg.dto.request.user.CreateVacancyRequest;
 import job.search.kg.dto.response.VacancyResponse;
+import job.search.kg.dto.response.user.VacancyStatsResponse;
 import job.search.kg.entity.Vacancy;
 import job.search.kg.service.user.BotVacancyService;
 import lombok.RequiredArgsConstructor;
@@ -38,5 +39,20 @@ public class BotVacancyController {
             @RequestParam Long telegramId){
         botVacancyService.deleteVacancy(vacancyId, telegramId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/user/{telegramId}/stats")
+    public ResponseEntity<VacancyStatsResponse> getUserVacancyStats(@PathVariable Long telegramId) {
+        VacancyStatsResponse stats = botVacancyService.getUserVacancyStats(telegramId);
+        return ResponseEntity.ok(stats);
+    }
+
+    @PutMapping("/{vacancyId}/status")
+    public ResponseEntity<Vacancy> updateVacancyStatus(
+            @PathVariable Long vacancyId,
+            @RequestParam Long telegramId,
+            @RequestParam Boolean isActive) {
+        Vacancy vacancy = botVacancyService.updateVacancyStatus(vacancyId, telegramId, isActive);
+        return ResponseEntity.ok(vacancy);
     }
 }

@@ -2,6 +2,7 @@ package job.search.kg.service.user;
 
 import job.search.kg.dto.request.user.CreateVacancyRequest;
 import job.search.kg.dto.response.VacancyResponse;
+import job.search.kg.dto.response.user.VacancyStatsResponse;
 import job.search.kg.entity.*;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
@@ -22,6 +23,40 @@ public class BotVacancyService {
     private final CityRepository cityRepository;
     private final CategoryRepository categoryRepository;
     private final SubcategoryRepository subcategoryRepository;
+
+    @Transactional(readOnly = true)
+    public VacancyStatsResponse getUserVacancyStats(Long telegramId) {
+        User user = userRepository.findByTelegramId(telegramId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        List<Vacancy> vacancies = vacancyRepository.findByUser(user);
+
+        long totalCount = vacancies.size();
+        long activeCount = vacancies.stream()
+                .filter(Vacancy::getIsActive)
+                .count();
+        long inactiveCount = totalCount - activeCount;
+
+        VacancyStatsResponse response = new VacancyStatsResponse();
+        response.setTotalCount(totalCount);
+        response.setActiveCount(activeCount);
+        response.setInactiveCount(inactiveCount);
+
+        return response;
+    }
+
+    @Transactional
+    public Vacancy updateVacancyStatus(Long vacancyId, Long telegramId, Boolean isActive) {
+        Vacancy vacancy = vacancyRepository.findById(vacancyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+
+        if (!vacancy.getUser().getTelegramId().equals(telegramId)) {
+            throw new AccessDeniedException("Access denied");
+        }
+
+        vacancy.setIsActive(isActive);
+        return vacancyRepository.save(vacancy);
+    }
 
     @Transactional
     public Vacancy createVacancy(Long telegramId, CreateVacancyRequest request) {

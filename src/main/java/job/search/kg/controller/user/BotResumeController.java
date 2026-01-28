@@ -2,6 +2,7 @@ package job.search.kg.controller.user;
 
 import job.search.kg.dto.request.user.CreateResumeRequest;
 import job.search.kg.dto.response.user.ResumeResponse;
+import job.search.kg.dto.response.user.ResumeStatsResponse;
 import job.search.kg.entity.Resume;
 import job.search.kg.service.user.BotResumeService;
 import lombok.RequiredArgsConstructor;
@@ -47,5 +48,11 @@ public class BotResumeController {
             @RequestParam Long telegramId) {
         botResumeService.deleteResume(resumeId, telegramId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/user/{telegramId}/stats")
+    public ResponseEntity<ResumeStatsResponse> getUserResumeStats(@PathVariable Long telegramId) {
+        ResumeStatsResponse stats = botResumeService.getUserResumeStats(telegramId);
+        return ResponseEntity.ok(stats);
     }
 }

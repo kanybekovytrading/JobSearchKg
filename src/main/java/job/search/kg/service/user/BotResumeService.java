@@ -2,6 +2,7 @@ package job.search.kg.service.user;
 
 import job.search.kg.dto.request.user.CreateResumeRequest;
 import job.search.kg.dto.response.user.ResumeResponse;
+import job.search.kg.dto.response.user.ResumeStatsResponse;
 import job.search.kg.entity.*;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
@@ -22,6 +23,27 @@ public class BotResumeService {
     private final CityRepository cityRepository;
     private final CategoryRepository categoryRepository;
     private final SubcategoryRepository subcategoryRepository;
+
+    @Transactional(readOnly = true)
+    public ResumeStatsResponse getUserResumeStats(Long telegramId) {
+        User user = userRepository.findByTelegramId(telegramId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        List<Resume> resumes = resumeRepository.findByUser(user);
+
+        long totalCount = resumes.size();
+        long activeCount = resumes.stream()
+                .filter(Resume::getIsActive)
+                .count();
+        long inactiveCount = totalCount - activeCount;
+
+        ResumeStatsResponse response = new ResumeStatsResponse();
+        response.setTotalCount(totalCount);
+        response.setActiveCount(activeCount);
+        response.setInactiveCount(inactiveCount);
+
+        return response;
+    }
 
     @Transactional
     public Resume createResume(Long telegramId, CreateResumeRequest request) {
