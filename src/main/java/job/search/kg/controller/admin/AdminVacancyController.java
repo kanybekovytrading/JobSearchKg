@@ -2,7 +2,10 @@ package job.search.kg.controller.admin;
 
 import job.search.kg.dto.request.admin.CreateVacancyAdminRequest;
 import job.search.kg.dto.request.admin.UpdateVacancyRequest;
+import job.search.kg.dto.response.admin.VacancyResponse;
+import job.search.kg.entity.User;
 import job.search.kg.entity.Vacancy;
+import job.search.kg.mapper.VacancyMapper;
 import job.search.kg.service.admin.AdminVacancyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,37 +23,78 @@ public class AdminVacancyController {
 
     private final AdminVacancyService adminVacancyService;
 
+    private final VacancyMapper vacancyMapper;
+
     @GetMapping
-    public ResponseEntity<Page<Vacancy>> getAllVacancies(Pageable pageable) {
+    public ResponseEntity<Page<VacancyResponse>> getAllVacancies(
+            Pageable pageable,
+            @RequestHeader(value = "Accept-Language", defaultValue = "ru") String languageHeader) {
+
+        User.Language language = parseLanguage(languageHeader);
         Page<Vacancy> vacancies = adminVacancyService.getAllVacancies(pageable);
-        return ResponseEntity.ok(vacancies);
+        Page<VacancyResponse> response = vacancies.map(v -> vacancyMapper.toResponse(v, language));
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Vacancy> getVacancyById(@PathVariable Long id) {
+    public ResponseEntity<VacancyResponse> getVacancyById(
+            @PathVariable Long id,
+            @RequestHeader(value = "Accept-Language", defaultValue = "ru") String languageHeader) {
+
+        User.Language language = parseLanguage(languageHeader);
         Vacancy vacancy = adminVacancyService.getVacancyById(id);
-        return ResponseEntity.ok(vacancy);
+        VacancyResponse response = vacancyMapper.toResponse(vacancy, language);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping
-    public ResponseEntity<Vacancy> createVacancy(
+    public ResponseEntity<VacancyResponse> createVacancy(
             @RequestBody CreateVacancyAdminRequest request,
-            @RequestParam Long adminUserId) {
+            @RequestParam Long adminUserId,
+            @RequestHeader(value = "Accept-Language", defaultValue = "ru") String languageHeader) {
+
+        User.Language language = parseLanguage(languageHeader);
         Vacancy vacancy = adminVacancyService.createVacancy(request, adminUserId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(vacancy);
+        VacancyResponse response = vacancyMapper.toResponse(vacancy, language);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Vacancy> updateVacancy(
+    public ResponseEntity<VacancyResponse> updateVacancy(
             @PathVariable Long id,
-            @RequestBody UpdateVacancyRequest request) {
+            @RequestBody UpdateVacancyRequest request,
+            @RequestHeader(value = "Accept-Language", defaultValue = "ru") String languageHeader) {
+
+        User.Language language = parseLanguage(languageHeader);
         Vacancy vacancy = adminVacancyService.updateVacancy(id, request);
-        return ResponseEntity.ok(vacancy);
+        VacancyResponse response = vacancyMapper.toResponse(vacancy, language);
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteVacancy(@PathVariable Long id) {
         adminVacancyService.deleteVacancy(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Parse language from Accept-Language header
+     * Supports: ru, ky, en
+     * Defaults to RU if not recognized
+     */
+    private User.Language parseLanguage(String languageHeader) {
+        if (languageHeader == null || languageHeader.isEmpty()) {
+            return User.Language.RU;
+        }
+
+        // Extract first language code (e.g., "en-US" -> "en")
+        String lang = languageHeader.split("[,;-]")[0].toLowerCase().trim();
+
+        return switch (lang) {
+            case "en" -> User.Language.EN;
+            case "ky" -> User.Language.KY;
+            case "ru" -> User.Language.RU;
+            default -> User.Language.RU;
+        };
     }
 }
