@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class VacancyMapper {
 
-    public VacancyResponse toResponse(Vacancy vacancy, User.Language language) {
+    public VacancyResponse toResponse(Vacancy vacancy) {
         if (vacancy == null) {
             return null;
         }
@@ -28,13 +28,13 @@ public class VacancyMapper {
                 .userName(vacancy.getUser() != null ? vacancy.getUser().getUsername() : null)
                 // City - multilingual
                 .cityId(Long.valueOf(vacancy.getCity() != null ? vacancy.getCity().getId() : null))
-                .cityName(getCityName(vacancy, language))
+                .cityName(getCityName(vacancy, User.Language.RU))
                 // Category - multilingual
                 .categoryId(Long.valueOf(vacancy.getCategory() != null ? vacancy.getCategory().getId() : null))
-                .categoryName(getCategoryName(vacancy, language))
+                .categoryName(getCategoryName(vacancy, User.Language.RU))
                 // Subcategory - multilingual
                 .subcategoryId(Long.valueOf(vacancy.getSubcategory() != null ? vacancy.getSubcategory().getId() : null))
-                .subcategoryName(getSubcategoryName(vacancy, language))
+                .subcategoryName(getSubcategoryName(vacancy, User.Language.RU))
                 .build();
     }
 
