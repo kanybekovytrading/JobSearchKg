@@ -1,9 +1,11 @@
 package job.search.kg.controller.user;
 
 import job.search.kg.dto.request.user.CreateResumeRequest;
+import job.search.kg.dto.response.ResumeResponseDto;
 import job.search.kg.dto.response.user.ResumeResponse;
 import job.search.kg.dto.response.user.ResumeStatsResponse;
 import job.search.kg.entity.Resume;
+import job.search.kg.service.admin.AdminResumeService;
 import job.search.kg.service.user.BotResumeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,7 @@ import java.util.List;
 public class BotResumeController {
 
     private final BotResumeService botResumeService;
+    private final AdminResumeService adminResumeService;
 
     @PostMapping
     public ResponseEntity<Resume> createResume(
@@ -54,5 +57,15 @@ public class BotResumeController {
     public ResponseEntity<ResumeStatsResponse> getUserResumeStats(@PathVariable Long telegramId) {
         ResumeStatsResponse stats = botResumeService.getUserResumeStats(telegramId);
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/{resumeId}")
+    public ResponseEntity<ResumeResponseDto> getResumeById(
+            @PathVariable Long resumeId) {
+
+        Resume resume = adminResumeService.getResumeById(resumeId);
+
+        ResumeResponseDto responseDto = ResumeResponseDto.fromEntity(resume, resume.getUser().getLanguage());
+        return ResponseEntity.ok(responseDto);
     }
 }
