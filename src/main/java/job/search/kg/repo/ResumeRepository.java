@@ -5,8 +5,8 @@ import job.search.kg.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
-
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ResumeRepository extends JpaRepository<Resume, Long>, JpaSpecificationExecutor<Resume> {
@@ -16,4 +16,6 @@ public interface ResumeRepository extends JpaRepository<Resume, Long>, JpaSpecif
     List<Resume> findByUserAndIsActive(User user, Boolean isActive);
 
     Long countByIsActive(Boolean isActive);
+
+    Optional<Resume> findFirstByUserIdOrderByCreatedAtAsc(Long userId);
 }

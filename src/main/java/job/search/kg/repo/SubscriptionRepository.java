@@ -19,4 +19,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     Optional<Subscription> findActiveSubscription(@Param("user") User user, @Param("now") LocalDateTime now);
 
     Long countByIsActive(Boolean isActive);
+
+    Optional<Subscription> findFirstByUserIdAndIsActiveTrueOrderByEndDateDesc(Long userId);
 }

@@ -1,6 +1,8 @@
 package job.search.kg.controller.admin;
 
 import job.search.kg.dto.request.PageRequestDTO;
+import job.search.kg.dto.response.admin.SubscriptionDTO;
+import job.search.kg.dto.response.admin.UserProfileDTO;
 import job.search.kg.entity.User;
 import job.search.kg.service.admin.AdminUserService;
 import lombok.RequiredArgsConstructor;
@@ -58,15 +60,21 @@ public class AdminUserController {
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/{id}/ban")
-    public ResponseEntity<User> banUser(@PathVariable Long id) {
-        User user = adminUserService.banUser(id);
-        return ResponseEntity.ok(user);
+    @PatchMapping("/{userId}/ban")
+    public ResponseEntity<Void> toggleBanUser(@PathVariable Long userId) {
+        adminUserService.toggleBanUser(userId);
+        return ResponseEntity.ok().build();
     }
 
-    @PutMapping("/{id}/unban")
-    public ResponseEntity<User> unbanUser(@PathVariable Long id) {
-        User user = adminUserService.unbanUser(id);
-        return ResponseEntity.ok(user);
+    @GetMapping("/{userId}/profile")
+    public ResponseEntity<UserProfileDTO> getUserProfile(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.getUserProfile(userId));
+    }
+    /**
+     * Получить информацию об активности (подписках)
+     */
+    @GetMapping("/{userId}/activity")
+    public ResponseEntity<SubscriptionDTO> getUserActivity(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminUserService.getUserActivity(userId));
     }
 }
