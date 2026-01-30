@@ -26,10 +26,17 @@ public class BotReferralService {
         User newUser = userRepository.findByTelegramId(newUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("New user not found"));
 
+        Long referralsCount = userRepository.countByReferrer(referrer);
+
+        if(referralsCount >= 100){
+            String message = getReferralLimitMessage(referrer.getLanguage());
+            telegramService.sendMessage(referrerId, message);
+            return;
+        }
         // Начислить баллы реферу
         pointsService.addPoints(
                 referrerId,
-                50,
+                100,
                 PointsTransaction.TransactionType.REFERRAL,
                 "Приглашение друга"
         );
@@ -37,19 +44,16 @@ public class BotReferralService {
         // Начислить бонус новому пользователю
         pointsService.addPoints(
                 newUserId,
-                10,
+                50,
                 PointsTransaction.TransactionType.REFERRAL,
                 "Регистрация по реферальной ссылке"
         );
 
-        // Уведомление реферу
-        telegramService.sendMessage(
-                referrerId,
-                String.format(
-                        "🎉 Ваш друг %s зарегистрировался!\n\n+50 баллов на ваш счёт!",
-                        newUser.getFirstName()
-                )
+        String successMessage = getReferralSuccessMessage(
+                referrer.getLanguage(),
+                newUser.getFirstName()
         );
+        telegramService.sendMessage(referrerId, successMessage);
     }
 
     @Transactional(readOnly = true)
@@ -57,19 +61,42 @@ public class BotReferralService {
         User user = userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String referralLink = "https://t.me/work_kg_bot?start=" + user.getReferralCode();
+        String referralLink = "https://t.me/bekacoder?start=" + user.getReferralCode();
 
-//        // Подсчёт приглашённых
-//        Long referralsCount = userRepository.count(
-//                (root, query, cb) -> cb.equal(root.get("referrer"), user)
-//        );
+        // Подсчёт приглашённых
+        Long referralsCount = userRepository.countByReferrer(user);
 
         ReferralInfoResponse response = new ReferralInfoResponse();
         response.setReferralCode(user.getReferralCode());
         response.setReferralLink(referralLink);
-//        response.setReferralsCount(referralsCount.intValue());
-        response.setRewardPerReferral(50);
+       response.setReferralsCount(referralsCount.intValue());
+        response.setRewardPerReferral(100);
 
         return response;
+    }
+
+    private String getReferralLimitMessage(User.Language language) {
+        return switch (language) {
+            case RU -> "🎉 Вы пригласили достаточно людей, лимит исчерпан!";
+            case KY -> "🎉 Сиз жетиштүү адамдарды чакырдыңыз, лимит бүттү!";
+            case EN -> "🎉 You have invited enough people, limit reached!";
+        };
+    }
+
+    private String getReferralSuccessMessage(User.Language language, String friendName) {
+        return switch (language) {
+            case RU -> String.format(
+                    "🎉 Ваш друг %s зарегистрировался!\n\n+100 баллов на ваш счёт!",
+                    friendName
+            );
+            case KY -> String.format(
+                    "🎉 Досуңуз %s катталды!\n\n+100 упай сиздин эсебиңизге!",
+                    friendName
+            );
+            case EN -> String.format(
+                    "🎉 Your friend %s has registered!\n\n+100 points added to your account!",
+                    friendName
+            );
+        };
     }
 }

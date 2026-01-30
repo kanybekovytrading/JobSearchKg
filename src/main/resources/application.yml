@@ -31,14 +31,17 @@ jwt:
 
 telegram:
   bot:
-    token: 8573182345:AAEzuCaNlofsA6tSGNCE4mbQnh1Fz5TiKGg
+    token: 8288728857:AAFvrR2fDp9y1WQg-lv1CvCAO3A41N6rlBk
 
 finik:
-  api:
-    url: https://api.finik.kg
-    key: YOUR_FINIK_API_KEY
-  webhook:
-    url: https://api.workkg.com/api/bot/payments/webhook
+  api-key: 6t50mJl6wz37FvP9Cg9sV5iB7Jpt6BaS9raiLDwo
+  account-id: e9454d9b-a85f-4678-9a5c-2819fedbce2e
+  private-key-path: classpath:finik_private.pem
+  base-url: https://beta.api.acquiring.averspay.kg
+  merchant-category-code: "0742"
+  qr-name-en: "Bilgirim - Testing"
+  webhook-url: ${APP_BASE_URL}/api/webhooks/finik
+
 
 logging:
   level:

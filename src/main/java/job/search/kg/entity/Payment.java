@@ -29,6 +29,11 @@ public class Payment {
     @Column(name = "amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
+    @Column(unique = true)
+    private String transactionId;
+
+    private String receiptNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "plan_type")
     private Subscription.PlanType planType;
@@ -50,6 +55,7 @@ public class Payment {
     public enum PaymentStatus {
         PENDING,
         SUCCESS,
-        FAILED
+        FAILED,
+        EXPIRED
     }
 }

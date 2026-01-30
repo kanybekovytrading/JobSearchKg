@@ -2,6 +2,7 @@ package job.search.kg.repo;
 import job.search.kg.entity.Subscription;
 import job.search.kg.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -21,4 +22,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     Long countByIsActive(Boolean isActive);
 
     Optional<Subscription> findFirstByUserIdAndIsActiveTrueOrderByEndDateDesc(Long userId);
+
+    @Modifying
+    @Query("UPDATE Subscription s SET s.isActive = false WHERE s.isActive = true AND s.endDate < :currentDate")
+    int deactivateExpiredSubscriptions(@Param("currentDate") LocalDateTime currentDate);
 }

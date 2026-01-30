@@ -10,7 +10,7 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByTelegramId(Long telegramId);
 
-    Optional<User> findByPhone(String phone);
+    Long countByReferrer(User referrer);
 
     Optional<User> findByReferralCode(String referralCode);
 

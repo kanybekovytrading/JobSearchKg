@@ -6,4 +6,5 @@ import lombok.Data;
 @Data
 public class CreatePaymentRequest {
     private Subscription.PlanType planType;
+    private String redirectUrl;
 }
