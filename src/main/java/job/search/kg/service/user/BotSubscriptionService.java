@@ -61,6 +61,13 @@ public class BotSubscriptionService {
         User user = userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        Optional<Subscription> existingSubscription = subscriptionRepository
+                .findActiveSubscription(user, LocalDateTime.now());
+
+        if (existingSubscription.isPresent()) {
+            throw new IllegalStateException("У вас уже есть активная подписка до " +
+                    existingSubscription.get().getEndDate());
+        }
         LocalDateTime startDate = LocalDateTime.now();
         LocalDateTime endDate = calculateEndDate(startDate, planType);
 

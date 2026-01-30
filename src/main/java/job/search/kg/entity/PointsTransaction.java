@@ -47,6 +47,7 @@ public class PointsTransaction {
         TASK,
         SEARCH_ACCESS,
         ADMIN_GRANT,
-        REGISTRATION
+        REGISTRATION,
+        SUBSCRIPTION
     }
 }

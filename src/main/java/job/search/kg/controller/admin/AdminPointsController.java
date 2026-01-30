@@ -2,6 +2,7 @@ package job.search.kg.controller.admin;
 
 import job.search.kg.dto.request.admin.UpdatePointsRequest;
 import job.search.kg.dto.response.admin.PointsStatsResponse;
+import job.search.kg.dto.response.admin.UserBalanceDTO;
 import job.search.kg.entity.PointsTransaction;
 import job.search.kg.entity.User;
 import job.search.kg.service.admin.AdminPointsService;
@@ -38,5 +39,13 @@ public class AdminPointsController {
     public ResponseEntity<List<PointsTransaction>> getUserTransactions(@PathVariable Long userId) {
         List<PointsTransaction> transactions = adminPointsService.getUserTransactions(userId);
         return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping("/users")
+    public ResponseEntity<List<UserBalanceDTO>> getAllUsersBalances(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<UserBalanceDTO> users = adminPointsService.getAllUsersBalances(page, size);
+        return ResponseEntity.ok(users);
     }
 }
