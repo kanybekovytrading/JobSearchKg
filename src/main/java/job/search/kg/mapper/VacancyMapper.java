@@ -38,6 +38,37 @@ public class VacancyMapper {
                 .build();
     }
 
+    public VacancyResponse toResponse(Vacancy vacancy, User.Language language) {
+        if (vacancy == null) {
+            return null;
+        }
+
+        return VacancyResponse.builder()
+                .id(vacancy.getId())
+                .title(vacancy.getTitle())
+                .description(vacancy.getDescription())
+                .salary(vacancy.getSalary() != null ? Double.valueOf(vacancy.getSalary()) : null)
+                .companyName(vacancy.getCompanyName())
+                .phone(vacancy.getPhone())
+                .isActive(vacancy.getIsActive())
+                .createdAt(vacancy.getCreatedAt())
+                .updatedAt(vacancy.getUpdatedAt())
+                // User
+                .userId(vacancy.getUser() != null ? vacancy.getUser().getId() : null)
+                .userName(vacancy.getUser() != null ? vacancy.getUser().getUsername() : null)
+                // City - multilingual
+                .cityId(Long.valueOf(vacancy.getCity() != null ? vacancy.getCity().getId() : null))
+                .cityName(getCityName(vacancy, language))
+                // Category - multilingual
+                .categoryId(Long.valueOf(vacancy.getCategory() != null ? vacancy.getCategory().getId() : null))
+                .categoryName(getCategoryName(vacancy, language))
+                // Subcategory - multilingual
+                .subcategoryId(Long.valueOf(vacancy.getSubcategory() != null ? vacancy.getSubcategory().getId() : null))
+                .subcategoryName(getSubcategoryName(vacancy, language))
+                .build();
+    }
+
+
     private String getCityName(Vacancy vacancy, User.Language language) {
         if (vacancy.getCity() == null) {
             return null;
