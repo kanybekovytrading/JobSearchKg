@@ -38,10 +38,6 @@ public class BotPointsService {
         transaction.setDescription(description);
         transactionRepository.save(transaction);
 
-        // Уведомление пользователю
-        telegramService.sendMessage(telegramId,
-                String.format("💰 Вам начислено +%d баллов!\n\nПричина: %s\n\nВаш баланс: %d баллов",
-                        amount, description, user.getBalance()));
     }
 
     @Transactional
