@@ -8,6 +8,7 @@ import job.search.kg.dto.response.user.WebhookData;
 import job.search.kg.payment.FinikWebhookService;
 import job.search.kg.payment.PaymentService;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,13 +25,13 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final FinikWebhookService webhookService;
 
-
+    @SneakyThrows
     @PostMapping("/create/{telegramId}")
     public ResponseEntity<CreatePaymentResponse> createPayment(
             @PathVariable Long telegramId,
             @RequestBody CreatePaymentRequest request
     ) {
-        try {
+
             log.info("Creating payment: userId={}, planType={}",
                     telegramId, request.getPlanType());
             CreatePaymentResponse response = paymentService.createPayment(
@@ -43,19 +44,6 @@ public class PaymentController {
                     response.getPaymentId(), response.getPaymentUrl());
 
             return ResponseEntity.ok(response);
-
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid request: {}", e.getMessage());
-            return ResponseEntity.badRequest().build();
-
-        } catch (RuntimeException e) {
-            log.error("Business error: {}", e.getMessage());
-            return ResponseEntity.unprocessableEntity().build();
-
-        } catch (Exception e) {
-            log.error("Error creating payment", e);
-            return ResponseEntity.internalServerError().build();
-        }
     }
 
     /**
