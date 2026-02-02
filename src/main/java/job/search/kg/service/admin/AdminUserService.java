@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +24,7 @@ public class AdminUserService {
     private final SubscriptionRepository subscriptionRepository;
     private final ResumeRepository repository;
     private final VacancyRepository vacancyRepository;
+    private final PaymentRepository paymentRepository;
 
     @Transactional(readOnly = true)
     public Page<User> getAllUsers(Pageable pageable) {
@@ -38,6 +40,11 @@ public class AdminUserService {
     @Transactional
     public void deleteUser(Long id) {
         User user = getUserById(id);
+        List<Payment> paymentList = user.getPayments();
+        if(paymentList != null){
+            paymentList.forEach(p -> p.setUser(null));
+            paymentRepository.saveAll(paymentList);
+        }
         userRepository.delete(user);
     }
 

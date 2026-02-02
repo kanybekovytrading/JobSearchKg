@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -70,7 +69,7 @@ public class PaymentService {
                 payment.getId(), payment.getPaymentId(), telegramId, planType);
 
         try {
-            String description = "Оплата теста: " + planType;
+            String description = "Оплата тарифа: " + getSubscriptionTrans(planType);
             String paymentUrl = finikPaymentService.createPayment(
                     UUID.fromString(payment.getPaymentId()),
                     payment.getAmount(),
@@ -138,9 +137,17 @@ public class PaymentService {
 
     private int getSubscriptionCost(Subscription.PlanType planType) {
         return switch (planType) {
-            case ONE_WEEK -> 150;      // 150 сом = 1500 баллов
-            case ONE_MONTH -> 500;     // 500 сом = 5000 баллов
-            case THREE_MONTHS -> 1200; // 1200 сом = 12000 баллов
+            case ONE_WEEK -> 1;      // 150 сом = 1500 баллов
+            case ONE_MONTH -> 5;     // 500 сом = 5000 баллов
+            case THREE_MONTHS -> 10; // 1200 сом = 12000 баллов
+        };
+    }
+
+    private String getSubscriptionTrans(Subscription.PlanType planType) {
+        return switch (planType) {
+            case ONE_WEEK -> "Недельный";      // 150 сом = 1500 баллов
+            case ONE_MONTH -> "1-месячный";     // 500 сом = 5000 баллов
+            case THREE_MONTHS -> "3-месячный"; // 1200 сом = 12000 баллов
         };
     }
 }
