@@ -132,7 +132,7 @@ public class BotSearchService {
     private ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
 
         String phone = resume.getUser().getPhone(); // например: 996701234567
-        String maskedPhone = phone.substring(0, 6) + "*** ***";
+        String maskedPhone = phone.substring(0, 6) + " *** ***";
 
         ResumeResponse response = new ResumeResponse();
         response.setId(resume.getId());
@@ -167,7 +167,7 @@ public class BotSearchService {
 
     private VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
         String phone = vacancy.getPhone(); // например: 996701234567
-        String maskedPhone = phone.substring(0, 6) + "*** ***";
+        String maskedPhone = phone.substring(0, 6) + " *** ***";
 
         VacancyResponse response = new VacancyResponse();
         response.setId(vacancy.getId());
