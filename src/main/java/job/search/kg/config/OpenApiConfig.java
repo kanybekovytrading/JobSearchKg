@@ -18,6 +18,7 @@ public class OpenApiConfig {
                 Server server = new Server();
                 server.setUrl("https://jobsearchkg-production.up.railway.app");
                 server.setDescription("API Server");
+
                 return new OpenAPI().addSecurityItem(new SecurityRequirement()
                         .addList("bearerAuth"))
                         .servers(List.of(server))
