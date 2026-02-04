@@ -17,7 +17,6 @@ public class ResumeResponse {
     private Integer experience;
     private String description;
     private String telegramUsername;
-    private Boolean isActive;
     private LocalDateTime createdAt;
     private String phone;
 }

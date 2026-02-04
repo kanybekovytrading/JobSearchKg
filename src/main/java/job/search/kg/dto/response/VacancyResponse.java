@@ -21,6 +21,5 @@ public class VacancyResponse {
     private String cityName;
     private String categoryName;
     private String subcategoryName;
-    private Boolean isActive;
     private LocalDateTime createdAt;
 }

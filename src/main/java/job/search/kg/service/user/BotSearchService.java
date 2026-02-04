@@ -162,7 +162,6 @@ public class BotSearchService {
         response.setCategoryName(vacancy.getCategory().getNameRu());
         response.setSubcategoryName(vacancy.getSubcategory().getNameRu());
         response.setCreatedAt(vacancy.getCreatedAt());
-
         return response;
     }
 
