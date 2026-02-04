@@ -6,6 +6,7 @@ import job.search.kg.dto.response.user.ResumeResponse;
 import job.search.kg.dto.response.user.SearchResultResponse;
 import job.search.kg.entity.Resume;
 import job.search.kg.entity.Vacancy;
+import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
@@ -130,7 +131,9 @@ public class BotSearchService {
     }
 
     private ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
-
+        if(resume.getUser().getPhone() == null){
+            throw new ResourceNotFoundException("Phone is missing for resume with id: " + resume.getUser().getId());
+        }
         String phone = resume.getUser().getPhone(); // например: 996701234567
         String maskedPhone = phone.substring(0, 6) + " *** ***";
 
@@ -162,10 +165,14 @@ public class BotSearchService {
         response.setCategoryName(vacancy.getCategory().getNameRu());
         response.setSubcategoryName(vacancy.getSubcategory().getNameRu());
         response.setCreatedAt(vacancy.getCreatedAt());
+        response.setTelegramUsername(vacancy.getUser().getUsername());
         return response;
     }
 
     private VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
+        if(vacancy.getPhone() == null){
+            throw new ResourceNotFoundException("Phone is missing for vacancy with id: " + vacancy.getId());
+        }
         String phone = vacancy.getPhone(); // например: 996701234567
         String maskedPhone = phone.substring(0, 6) + " *** ***";
 

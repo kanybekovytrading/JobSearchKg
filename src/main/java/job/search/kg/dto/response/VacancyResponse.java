@@ -22,5 +22,6 @@ public class VacancyResponse {
     private String categoryName;
     private String subcategoryName;
     private Boolean isActive;
+    private String telegramUsername;
     private LocalDateTime createdAt;
 }
