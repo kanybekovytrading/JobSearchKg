@@ -131,7 +131,7 @@ public class BotSearchService {
     }
 
     private ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
-        if(resume.getUser().getPhone() == null){
+        if(resume.getUser().getPhone().isEmpty()){
             throw new ResourceNotFoundException("Phone is missing for resume with id: " + resume.getUser().getId());
         }
         String phone = resume.getUser().getPhone(); // например: 996701234567
@@ -170,7 +170,7 @@ public class BotSearchService {
     }
 
     private VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
-        if(vacancy.getPhone() == null){
+        if(vacancy.getPhone().isEmpty()){
             throw new ResourceNotFoundException("Phone is missing for vacancy with id: " + vacancy.getId());
         }
         String phone = vacancy.getPhone(); // например: 996701234567
