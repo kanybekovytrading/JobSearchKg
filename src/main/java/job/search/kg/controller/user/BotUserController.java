@@ -2,7 +2,9 @@ package job.search.kg.controller.user;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import job.search.kg.dto.request.user.UserRegistrationRequest;
+import job.search.kg.dto.request.user.UserUpdateRequest;
 import job.search.kg.dto.response.user.UserProfileResponse;
 import job.search.kg.entity.User;
 import job.search.kg.service.user.BotUserService;
@@ -58,6 +60,18 @@ public class BotUserController {
             @PathVariable Long telegramId,
             @RequestParam String language) {
         botUserService.updateLanguage(telegramId, User.Language.valueOf(language.toUpperCase()));
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "Обновить данные пользователя",
+            description = "Обновляет информацию о пользователе (имя, фамилию, телефон, язык и т.д.)"
+    )
+    @PutMapping("/{telegramId}")
+    public ResponseEntity<Void> updateUser(
+            @PathVariable Long telegramId,
+            @Valid @RequestBody UserUpdateRequest request) {
+        botUserService.updateUser(telegramId, request);
         return ResponseEntity.ok().build();
     }
 }

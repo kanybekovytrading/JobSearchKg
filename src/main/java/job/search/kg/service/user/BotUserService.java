@@ -1,6 +1,7 @@
 package job.search.kg.service.user;
 
 import job.search.kg.dto.request.user.UserRegistrationRequest;
+import job.search.kg.dto.request.user.UserUpdateRequest;
 import job.search.kg.dto.response.user.UserProfileResponse;
 import job.search.kg.entity.PointsTransaction;
 import job.search.kg.entity.User;
@@ -76,5 +77,28 @@ public class BotUserService {
         User user = getUserByTelegramId(telegramId);
         user.setLanguage(language);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void updateUser(Long telegramId, UserUpdateRequest request) {
+        User user = getUserByTelegramId(telegramId);
+
+        if (request.getFirstName() != null) {
+            user.setFirstName(request.getFirstName());
+        }
+        if (request.getLastName() != null) {
+            user.setLastName(request.getLastName());
+        }
+        if (request.getUsername() != null) {
+            user.setUsername(request.getUsername());
+        }
+        if (request.getPhone() != null) {
+            user.setPhone(request.getPhone());
+        }
+        if (request.getLanguage() != null) {
+            user.setLanguage(User.Language.valueOf(request.getLanguage().toUpperCase()));
+        }
+
+         userRepository.save(user);
     }
 }
