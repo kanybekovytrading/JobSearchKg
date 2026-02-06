@@ -2,13 +2,12 @@ package job.search.kg.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import job.search.kg.controller.user.BotSearchController;
+import job.search.kg.dto.response.user.ResumeStatisticsResponse;
+import job.search.kg.dto.response.user.VacancyStatisticsResponse;
 import job.search.kg.service.user.BotSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/statistic")
@@ -56,6 +55,26 @@ public class StatisticController {
     public ResponseEntity<Void> trackResumeContactClick(@PathVariable Long resumeId) {
         searchService.trackResumeContactClick(resumeId);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(
+            summary = "Получить статистику вакансии",
+            description = "Возвращает статистику просмотров, кликов и откликов для конкретной вакансии"
+    )
+    @GetMapping("/vacancies/{vacancyId}")
+    public ResponseEntity<VacancyStatisticsResponse> getVacancyStatistics(@PathVariable Long vacancyId) {
+        VacancyStatisticsResponse statistics = searchService.getVacancyStatistics(vacancyId);
+        return ResponseEntity.ok(statistics);
+    }
+
+    @Operation(
+            summary = "Получить статистику резюме",
+            description = "Возвращает статистику просмотров, кликов и приглашений для конкретного резюме"
+    )
+    @GetMapping("/resumes/{resumeId}")
+    public ResponseEntity<ResumeStatisticsResponse> getResumeStatistics(@PathVariable Long resumeId) {
+        ResumeStatisticsResponse statistics = searchService.getResumeStatistics(resumeId);
+        return ResponseEntity.ok(statistics);
     }
 
 }

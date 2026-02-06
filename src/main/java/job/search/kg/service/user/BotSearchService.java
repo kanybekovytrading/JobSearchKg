@@ -3,7 +3,9 @@ package job.search.kg.service.user;
 import job.search.kg.dto.request.user.SearchRequest;
 import job.search.kg.dto.response.VacancyResponse;
 import job.search.kg.dto.response.user.ResumeResponse;
+import job.search.kg.dto.response.user.ResumeStatisticsResponse;
 import job.search.kg.dto.response.user.SearchResultResponse;
+import job.search.kg.dto.response.user.VacancyStatisticsResponse;
 import job.search.kg.entity.Resume;
 import job.search.kg.entity.ResumeStatistics;
 import job.search.kg.entity.Vacancy;
@@ -318,5 +320,57 @@ public class BotSearchService {
         response.setCreatedAt(vacancy.getCreatedAt());
 
         return response;
+    }
+
+    /**
+     * Получить статистику вакансии
+     */
+    @Transactional(readOnly = true)
+    public VacancyStatisticsResponse getVacancyStatistics(Long vacancyId) {
+        Vacancy vacancy = vacancyRepository.findById(vacancyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+
+        VacancyStatistics stats = vacancyStatisticsRepository
+                .findByVacancyId(vacancyId)
+                .orElseGet(() -> VacancyStatistics.builder()
+                        .vacancy(vacancy)
+                        .viewsCount(0L)
+                        .contactClicksCount(0L)
+                        .responseCount(0L)
+                        .build());
+
+        return VacancyStatisticsResponse.builder()
+                .vacancyId(vacancy.getId())
+                .vacancyTitle(vacancy.getTitle())
+                .viewsCount(stats.getViewsCount())
+                .contactClicksCount(stats.getContactClicksCount())
+                .responseCount(stats.getResponseCount())
+                .build();
+    }
+
+    /**
+     * Получить статистику резюме
+     */
+    @Transactional(readOnly = true)
+    public ResumeStatisticsResponse getResumeStatistics(Long resumeId) {
+        Resume resume = resumeRepository.findById(resumeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+
+        ResumeStatistics stats = resumeStatisticsRepository
+                .findByResumeId(resumeId)
+                .orElseGet(() -> ResumeStatistics.builder()
+                        .resume(resume)
+                        .viewsCount(0L)
+                        .contactClicksCount(0L)
+                        .invitationCount(0L)
+                        .build());
+
+        return ResumeStatisticsResponse.builder()
+                .resumeId(resume.getId())
+                .resumeName(resume.getName())
+                .viewsCount(stats.getViewsCount())
+                .contactClicksCount(stats.getContactClicksCount())
+                .invitationCount(stats.getInvitationCount())
+                .build();
     }
 }
