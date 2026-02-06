@@ -34,11 +34,11 @@ telegram:
     token: 8288728857:AAFvrR2fDp9y1WQg-lv1CvCAO3A41N6rlBk
 
 finik-withdraw:
-  api-key: iFKEAzkc8f5wPrSVmnL6U60hYrhuqxBK8tZDS8jv
-  account-id: 0090ec57-8f81-4d76-abc1-83dc08d076a5
-  user-id: f69d4dce-8c75-4536-a4a5-19d845a5b1a1
+  api-key: ElndShsDwG1jt6MEPd22O5gauTCmuIJm2japyheC
+  account-id: 9c8aebce-49fa-4561-9c68-07eef6e85beb
+  user-id: 1c98bba0-ee93-469f-b1ec-745bdd384fd5
   private-key-path: classpath:private_key.pem
-  base-url: https://api.paymentsgateway.averspay.kg
+  base-url: https://beta.api.paymentsgateway.averspay.kg
 
 finik:
   api-key: LOlnU70w7LtRpBZ5HAxLaVatjIXQLGS9xmeSmWM4
