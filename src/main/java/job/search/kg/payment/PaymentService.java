@@ -101,6 +101,75 @@ public class PaymentService {
             throw e;
         }
     }
+    @Transactional
+    public CreatePaymentResponse createPayment(
+            Long telegramId,
+            BigDecimal amount,
+            String type,
+            String redirectURL
+    ) throws Exception {
+
+        // 1. Валидация
+        if (telegramId == null) {
+            throw new IllegalArgumentException("telegramId and planType are required");
+        }
+
+        // 2. Проверяем пользователя
+        User user = userRepository.findByTelegramId(telegramId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+
+        boolean hasActiveSubs =  botSubscriptionService.hasActiveSubscription(telegramId);
+
+        if(hasActiveSubs){
+            throw new RuntimeException("Already have active subscription. Wait its expiration and try again");
+        }
+        // 5. Создаем запись в БД СНАЧАЛА
+        Payment payment = new Payment();
+        payment.setUser(user);
+        payment.setPaymentId(UUID.randomUUID().toString());
+        payment.setAmount(amount);
+        payment.setStatus(Payment.PaymentStatus.PENDING);
+        payment.setCreatedAt(LocalDateTime.now());
+        payment = paymentRepository.save(payment);
+
+        log.info("Payment record created: id={}, paymentId={}, telegramId={}",
+                payment.getId(), payment.getPaymentId(), telegramId);
+
+        try {
+            String description = "Оплата за поднятие показа " + type;
+            String paymentUrl = finikPaymentService.createPayment(
+                    UUID.fromString(payment.getPaymentId()),
+                    payment.getAmount(),
+                    description,
+                    redirectURL
+            );
+
+            // 7. Сохраняем URL
+            payment.setPaymentUrl(paymentUrl);
+            payment = paymentRepository.save(payment);
+
+            log.info("Payment URL received: paymentId={}, url={}",
+                    payment.getPaymentId(), paymentUrl);
+
+            // 8. Возвращаем ответ
+            return new CreatePaymentResponse(
+                    payment.getPaymentId(),
+                    paymentUrl,
+                    Payment.PaymentStatus.PENDING.name()
+            );
+
+
+        } catch (Exception e) {
+            // При ошибке помечаем платеж как FAILED
+            payment.setStatus(Payment.PaymentStatus.FAILED);
+            paymentRepository.save(payment);
+
+            log.error("Failed to create payment in Finik: paymentId={}",
+                    payment.getPaymentId(), e);
+            throw e;
+        }
+    }
 
     /**
      * Получение платежа по ID

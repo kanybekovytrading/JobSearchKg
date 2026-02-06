@@ -1,5 +1,6 @@
 package job.search.kg.controller.user;
 
+import io.swagger.v3.oas.annotations.Operation;
 import job.search.kg.dto.request.user.SearchRequest;
 import job.search.kg.dto.response.VacancyResponse;
 import job.search.kg.dto.response.user.ResumeResponse;
@@ -16,19 +17,27 @@ public class BotSearchController {
 
     private final BotSearchService botSearchService;
 
-    @PostMapping("/resumes")
+    @Operation(
+            summary = "Поиск резюме",
+            description = "Поиск резюме по параметрам: город, категория, подкатегория. " +
+                    "Результаты отсортированы: сначала с активным Boost, затем по дате создания."
+    )
+    @PostMapping("/search/resumes")
     public ResponseEntity<SearchResultResponse<ResumeResponse>> searchResumes(
             @RequestParam Long telegramId,
             @RequestBody SearchRequest request) {
-        SearchResultResponse<ResumeResponse> results = botSearchService.searchResumes(telegramId, request);
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(botSearchService.searchResumes(telegramId, request));
     }
 
-    @PostMapping("/vacancies")
+    @Operation(
+            summary = "Поиск вакансий",
+            description = "Поиск вакансий по параметрам: город, категория, подкатегория. " +
+                    "Результаты отсортированы: сначала с активным Boost, затем по дате создания."
+    )
+    @PostMapping("/search/vacancies")
     public ResponseEntity<SearchResultResponse<VacancyResponse>> searchVacancies(
             @RequestParam Long telegramId,
             @RequestBody SearchRequest request) {
-        SearchResultResponse<VacancyResponse> results = botSearchService.searchVacancies(telegramId, request);
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(botSearchService.searchVacancies(telegramId, request));
     }
 }

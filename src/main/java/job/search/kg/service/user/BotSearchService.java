@@ -5,7 +5,9 @@ import job.search.kg.dto.response.VacancyResponse;
 import job.search.kg.dto.response.user.ResumeResponse;
 import job.search.kg.dto.response.user.SearchResultResponse;
 import job.search.kg.entity.Resume;
+import job.search.kg.entity.ResumeStatistics;
 import job.search.kg.entity.Vacancy;
+import job.search.kg.entity.VacancyStatistics;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import lombok.RequiredArgsConstructor;
@@ -14,10 +16,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class BotSearchService {
@@ -25,10 +28,13 @@ public class BotSearchService {
     private final ResumeRepository resumeRepository;
     private final VacancyRepository vacancyRepository;
     private final BotAccessService accessService;
+    private final VacancyBoostRepository vacancyBoostRepository;
+    private final ResumeBoostRepository resumeBoostRepository;
+    private final VacancyStatisticsRepository vacancyStatisticsRepository;
+    private final ResumeStatisticsRepository resumeStatisticsRepository;
 
     @Transactional(readOnly = true)
     public SearchResultResponse<ResumeResponse> searchResumes(Long telegramId, SearchRequest request) {
-
 
         Specification<Resume> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -51,6 +57,10 @@ public class BotSearchService {
         };
 
         List<Resume> resumes = resumeRepository.findAll(spec);
+
+        // Сортировка: сначала с активным Boost, потом по дате
+        resumes = sortResumesByBoost(resumes);
+
         List<ResumeResponse> responses;
 
         // Проверка доступа
@@ -58,7 +68,7 @@ public class BotSearchService {
             responses = resumes.stream()
                     .map(this::mapResumeToResponseWithoutSubs)
                     .collect(Collectors.toList());
-        }else {
+        } else {
             responses = resumes.stream()
                     .map(this::mapResumeToResponse)
                     .collect(Collectors.toList());
@@ -95,12 +105,15 @@ public class BotSearchService {
 
         List<Vacancy> vacancies = vacancyRepository.findAll(spec);
 
+        // Сортировка: сначала с активным Boost, потом по дате
+        vacancies = sortVacanciesByBoost(vacancies);
+
         List<VacancyResponse> responses;
         if (!accessService.canSearchJobs(telegramId)) {
-            responses =  vacancies.stream()
+            responses = vacancies.stream()
                     .map(this::mapVacancyToResponseWithoutSubs)
                     .collect(Collectors.toList());
-        }else {
+        } else {
             responses = vacancies.stream()
                     .map(this::mapVacancyToResponse)
                     .collect(Collectors.toList());
@@ -111,6 +124,123 @@ public class BotSearchService {
         result.setTotal(responses.size());
 
         return result;
+    }
+
+    /**
+     * Просмотр вакансии (увеличивает счетчик)
+     */
+    @Transactional
+    public void trackVacancyView(Long vacancyId) {
+        Vacancy vacancy = vacancyRepository.findById(vacancyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+
+        VacancyStatistics stats = vacancyStatisticsRepository
+                .findByVacancyId(vacancyId)
+                .orElseGet(() -> {
+                    VacancyStatistics newStats = VacancyStatistics.builder()
+                            .vacancy(vacancy)
+                            .viewsCount(0L)
+                            .contactClicksCount(0L)
+                            .responseCount(0L)
+                            .build();
+                    return vacancyStatisticsRepository.save(newStats);
+                });
+
+        stats.incrementViews();
+        vacancyStatisticsRepository.save(stats);
+    }
+
+    /**
+     * Клик по контактам вакансии
+     */
+    @Transactional
+    public void trackVacancyContactClick(Long vacancyId) {
+        VacancyStatistics stats = vacancyStatisticsRepository
+                .findByVacancyId(vacancyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vacancy statistics not found"));
+
+        stats.incrementContactClicks();
+        vacancyStatisticsRepository.save(stats);
+    }
+
+    /**
+     * Просмотр резюме
+     */
+    @Transactional
+    public void trackResumeView(Long resumeId) {
+        Resume resume = resumeRepository.findById(resumeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+
+        ResumeStatistics stats = resumeStatisticsRepository
+                .findByResumeId(resumeId)
+                .orElseGet(() -> {
+                    ResumeStatistics newStats = ResumeStatistics.builder()
+                            .resume(resume)
+                            .viewsCount(0L)
+                            .contactClicksCount(0L)
+                            .invitationCount(0L)
+                            .build();
+                    return resumeStatisticsRepository.save(newStats);
+                });
+
+        stats.incrementViews();
+        resumeStatisticsRepository.save(stats);
+    }
+
+    /**
+     * Клик по контактам резюме
+     */
+    @Transactional
+    public void trackResumeContactClick(Long resumeId) {
+        ResumeStatistics stats = resumeStatisticsRepository
+                .findByResumeId(resumeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Resume statistics not found"));
+
+        stats.incrementContactClicks();
+        resumeStatisticsRepository.save(stats);
+    }
+
+    /**
+     * Сортировка вакансий: Boost вверх, потом по дате
+     */
+    private List<Vacancy> sortVacanciesByBoost(List<Vacancy> vacancies) {
+        LocalDateTime now = LocalDateTime.now();
+
+        return vacancies.stream()
+                .sorted((v1, v2) -> {
+                    boolean v1HasBoost = vacancyBoostRepository
+                            .existsByVacancyIdAndIsActiveTrueAndExpiresAtAfter(v1.getId(), now);
+                    boolean v2HasBoost = vacancyBoostRepository
+                            .existsByVacancyIdAndIsActiveTrueAndExpiresAtAfter(v2.getId(), now);
+
+                    if (v1HasBoost && !v2HasBoost) return -1;
+                    if (!v1HasBoost && v2HasBoost) return 1;
+
+                    // Если оба с бустом или оба без, сортируем по дате
+                    return v2.getCreatedAt().compareTo(v1.getCreatedAt());
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Сортировка резюме: Boost вверх, потом по дате
+     */
+    private List<Resume> sortResumesByBoost(List<Resume> resumes) {
+        LocalDateTime now = LocalDateTime.now();
+
+        return resumes.stream()
+                .sorted((r1, r2) -> {
+                    boolean r1HasBoost = resumeBoostRepository
+                            .existsByResumeIdAndIsActiveTrueAndExpiresAtAfter(r1.getId(), now);
+                    boolean r2HasBoost = resumeBoostRepository
+                            .existsByResumeIdAndIsActiveTrueAndExpiresAtAfter(r2.getId(), now);
+
+                    if (r1HasBoost && !r2HasBoost) return -1;
+                    if (!r1HasBoost && r2HasBoost) return 1;
+
+                    return r2.getCreatedAt().compareTo(r1.getCreatedAt());
+                })
+                .collect(Collectors.toList());
     }
 
     private ResumeResponse mapResumeToResponse(Resume resume) {
@@ -131,10 +261,10 @@ public class BotSearchService {
     }
 
     private ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
-        if(resume.getUser().getPhone().isEmpty()){
+        if (resume.getUser().getPhone().isEmpty()) {
             throw new ResourceNotFoundException("Phone is missing for resume with id: " + resume.getUser().getId());
         }
-        String phone = resume.getUser().getPhone(); // например: 996701234567
+        String phone = resume.getUser().getPhone();
         String maskedPhone = phone.substring(0, 6) + " *** ***";
 
         ResumeResponse response = new ResumeResponse();
@@ -147,7 +277,6 @@ public class BotSearchService {
         response.setSubcategoryName(resume.getSubcategory().getNameRu());
         response.setExperience(resume.getExperience());
         response.setDescription(resume.getDescription());
-       // response.setTelegramUsername(resume.getUser().getUsername());
         response.setPhone(maskedPhone);
 
         return response;
@@ -170,10 +299,10 @@ public class BotSearchService {
     }
 
     private VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
-        if(vacancy.getPhone().isEmpty()){
+        if (vacancy.getPhone().isEmpty()) {
             throw new ResourceNotFoundException("Phone is missing for vacancy with id: " + vacancy.getId());
         }
-        String phone = vacancy.getPhone(); // например: 996701234567
+        String phone = vacancy.getPhone();
         String maskedPhone = phone.substring(0, 6) + " *** ***";
 
         VacancyResponse response = new VacancyResponse();

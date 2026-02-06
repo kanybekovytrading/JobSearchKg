@@ -48,6 +48,9 @@ public class PointsTransaction {
         SEARCH_ACCESS,
         ADMIN_GRANT,
         REGISTRATION,
-        SUBSCRIPTION
+        SUBSCRIPTION,
+        REFUND,
+        WITHDRAWAL,
+        BOOST
     }
 }

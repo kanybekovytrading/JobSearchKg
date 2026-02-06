@@ -2,7 +2,12 @@ package job.search.kg.payment;
 
 import job.search.kg.dto.response.user.WebhookData;
 import job.search.kg.entity.Payment;
+import job.search.kg.entity.ResumeBoost;
+import job.search.kg.entity.VacancyBoost;
 import job.search.kg.repo.PaymentRepository;
+import job.search.kg.repo.ResumeBoostRepository;
+import job.search.kg.repo.VacancyBoostRepository;
+import job.search.kg.service.user.BoostService;
 import job.search.kg.service.user.BotSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +26,9 @@ public class FinikWebhookService {
 
     private final PaymentRepository paymentRepository;
     private final BotSubscriptionService botSubscriptionService;
+    private final BoostService boostService;
+    private final VacancyBoostRepository vacancyBoostRepository;
+    private final ResumeBoostRepository resumeBoostRepository;
 
     @Transactional
     public void processWebhook(WebhookData webhook) {
@@ -54,8 +62,23 @@ public class FinikWebhookService {
 
             log.info("Payment succeeded: paymentId={}", payment.getPaymentId());
 
-           botSubscriptionService.createSubscription(payment.getUser().getTelegramId(), payment.getPlanType(), paymentIdStr);
-
+            if(payment.getPlanType() != null) {
+                botSubscriptionService.createSubscription(payment.getUser().getTelegramId(), payment.getPlanType(), paymentIdStr);
+            }else {
+                VacancyBoost vacancyBoost = vacancyBoostRepository.findByPaymentId(payment.getPaymentId()).orElse(null);
+                if(vacancyBoost != null) {
+                    boostService.deactivateOldVacancyBoosts(vacancyBoost.getId());
+                    vacancyBoost.setIsActive(true);
+                    vacancyBoostRepository.save(vacancyBoost);
+                }else {
+                    ResumeBoost resumeBoost = resumeBoostRepository.findByPaymentId(payment.getPaymentId()).orElse(null);
+                    if(resumeBoost != null){
+                        boostService.deactivateOldResumeBoosts(resumeBoost.getId());
+                        resumeBoost.setIsActive(true);
+                        resumeBoostRepository.save(resumeBoost);
+                    }
+                }
+            }
         } else {
             payment.setStatus(Payment.PaymentStatus.PENDING);
             log.warn("Payment failed: paymentId={}", payment.getPaymentId());

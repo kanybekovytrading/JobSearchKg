@@ -54,6 +54,16 @@ public class Vacancy {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    @Column(name = "min_age")
+    private Integer minAge;
+
+    @Column(name = "max_age")
+    private Integer maxAge;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_gender")
+    private GenderPreference preferredGender = GenderPreference.ANY;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -61,4 +71,10 @@ public class Vacancy {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public enum GenderPreference {
+        MALE,       // Только мужчины
+        FEMALE,     // Только женщины
+        ANY         // Без разницы
+    }
 }
