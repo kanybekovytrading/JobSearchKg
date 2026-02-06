@@ -27,7 +27,7 @@ import java.util.Map;
 @Slf4j
 public class FinikPaymentsGatewayService {
 
-    private final FinikConfig config;
+    private final FinikWConfig config;
     private final FinikSignatureUtil signatureUtil;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
@@ -58,7 +58,7 @@ public class FinikPaymentsGatewayService {
         String timestamp = String.valueOf(System.currentTimeMillis());
 
         // URL для Payments Gateway API
-        String baseUrl = config.getBaseUrl().replace("acquiring", "paymentsgateway");
+        String baseUrl = config.getBaseUrl();
         URI uri = URI.create(baseUrl + "/v2/recipient");
 
         // Подготовка заголовков
@@ -148,7 +148,7 @@ public class FinikPaymentsGatewayService {
         String timestamp = String.valueOf(System.currentTimeMillis());
 
         // URL для Payments Gateway API
-        String baseUrl = config.getBaseUrl().replace("acquiring", "paymentsgateway");
+        String baseUrl = config.getBaseUrl();
         URI uri = URI.create(baseUrl + "/v2/payment");
 
         // Подготовка заголовков
@@ -217,7 +217,7 @@ public class FinikPaymentsGatewayService {
         String timestamp = String.valueOf(System.currentTimeMillis());
 
         // URL для Payments Gateway API
-        String baseUrl = config.getBaseUrl().replace("acquiring", "paymentsgateway");
+        String baseUrl = config.getBaseUrl();
         URI uri = URI.create(baseUrl + "/v2/payments/" + paymentId);
 
         // Подготовка заголовков
@@ -302,7 +302,7 @@ public class FinikPaymentsGatewayService {
         String timestamp = String.valueOf(System.currentTimeMillis());
 
         // URL для Payments Gateway API
-        String baseUrl = config.getBaseUrl().replace("acquiring", "paymentsgateway");
+        String baseUrl = config.getBaseUrl();
         URI uri = URI.create(baseUrl + "/v2/services");
 
         // Подготовка заголовков

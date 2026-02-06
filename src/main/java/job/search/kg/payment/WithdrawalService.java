@@ -26,7 +26,7 @@ public class WithdrawalService {
     private final WithdrawalRepository withdrawalRepository;
     private final UserRepository userRepository;
     private final FinikPaymentsGatewayService paymentsGatewayService;
-    private final FinikConfig finikConfig;
+    private final FinikWConfig finikConfig;
 
     /**
      * Проверка получателя перед выводом
@@ -117,7 +117,7 @@ public class WithdrawalService {
             MakePaymentResponse paymentResponse = paymentsGatewayService.makePayment(
                     transactionId,
                     finikConfig.getAccountId(),
-                    user.getTelegramId().toString(),  // userId
+                    finikConfig.getUserId(),  // userId
                     serviceId,
                     formattedPhone,
                     amount.intValue()
@@ -193,12 +193,45 @@ public class WithdrawalService {
     public GetServicesResponse getAvailableServices(String locale) throws Exception {
         // Получаем все активные услуги
         // Можно отфильтровать по категории (например, только мобильные операторы)
-        return paymentsGatewayService.getAvailableServices(
+        GetServicesResponse allServices = paymentsGatewayService.getAvailableServices(
                 0,      // from
                 50,     // size (максимум)
                 locale, // язык (RU, EN, KY)
-                null    // parentId (null = все услуги)
+                "kyrgyzstan"    // parentId (null = все услуги)
         );
+
+//        List<ServiceDTO> filteredServices = allServices.getServices()
+//                .stream()
+//                .filter(service -> {
+//                    String nameRu = service.getName_ru();
+//                    if (nameRu == null) return false;
+//
+//                    // Фильтруем только банкинги и платежные системы
+//                    return nameRu.toLowerCase().contains("o!") ||
+//                            nameRu.toLowerCase().contains("megacom") ||
+//                            nameRu.toLowerCase().contains("beeline") ||
+//                            nameRu.toLowerCase().contains("банк") ||
+//                            nameRu.toLowerCase().contains("элсом") ||
+//                            nameRu.toLowerCase().contains("оптима") ||
+//                            nameRu.toLowerCase().contains("bakai") ||
+//                            nameRu.toLowerCase().contains("demir") ||
+//                            nameRu.toLowerCase().contains("rsk") ||
+//                            nameRu.toLowerCase().contains("dos") ||
+//                            nameRu.toLowerCase().contains("айыл") ||
+//                            nameRu.toLowerCase().contains("кыргызстан") ||
+//                            nameRu.toLowerCase().contains("компаньон") ||
+//                            nameRu.toLowerCase().contains("halyk") ||
+//                            nameRu.toLowerCase().contains("mbank");
+//                })
+//                .filter(service -> "ENABLED".equals(service.getStatus())) // Только активные
+//                .toList();
+//
+//        allServices.setServices(filteredServices);
+//        allServices.setTotal(filteredServices.size());
+//
+//        log.info("Found {} payment services", filteredServices.size());
+
+        return allServices;
     }
 
     /**
