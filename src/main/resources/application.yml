@@ -1,8 +1,7 @@
 spring:
   application:
     name: work-kg-backend
-  profiles:
-    active: local
+
   datasource:
     url: jdbc:postgresql://postgres-duve.railway.internal:5432/railway
     username: postgres
