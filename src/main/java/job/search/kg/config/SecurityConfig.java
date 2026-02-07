@@ -50,7 +50,8 @@ public class SecurityConfig {
                                         "/api/categories/**",
                                         "/api/subcategories/**",
                                         "/v3/api-docs/**",
-                                        "/admin/analytics/**"
+                                        "/admin/analytics/**",
+                                        "/api/statistic/**"
                                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
