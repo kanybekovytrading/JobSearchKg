@@ -266,7 +266,7 @@ public class BotSearchService {
 
         ResumeResponse response = new ResumeResponse();
 
-        if(resume.getUser().getPhone() != null ) {
+        if(resume.getUser().getPhone() != null && !resume.getUser().getPhone().isEmpty()) {
             String phone = resume.getUser().getPhone();
             String maskedPhone = phone.substring(0, 6) + " *** ***";
             response.setPhone(maskedPhone);
@@ -305,7 +305,7 @@ public class BotSearchService {
     private VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
         VacancyResponse response = new VacancyResponse();
 
-        if(vacancy.getUser().getPhone() != null ) {
+        if(vacancy.getUser().getPhone() != null  && !vacancy.getUser().getPhone().isEmpty() ) {
             String phone = vacancy.getPhone();
             String maskedPhone = phone.substring(0, 6) + " *** ***";
             response.setPhone(maskedPhone);
