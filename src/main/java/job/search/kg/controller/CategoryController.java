@@ -28,10 +28,4 @@ public class CategoryController {
         List<CustomResponse> categories = categoryService.getAllActiveCategories(telegramId, sphereId);
         return ResponseEntity.ok(categories);
     }
-
-    @GetMapping("/{telegramId}/{id}")
-    public ResponseEntity<CustomResponse> getCategoryById(@PathVariable Integer id, @PathVariable Long telegramId) {
-        CustomResponse category = categoryService.getCategoryById(id, telegramId);
-        return ResponseEntity.ok(category);
-    }
 }
