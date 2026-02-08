@@ -72,6 +72,9 @@ public class Vacancy {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @OneToOne(mappedBy = "vacancy", cascade = CascadeType.ALL, orphanRemoval = true)
+    private VacancyStatistics statistics;
+
     public enum GenderPreference {
         MALE,       // Только мужчины
         FEMALE,     // Только женщины

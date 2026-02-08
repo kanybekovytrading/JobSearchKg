@@ -91,6 +91,14 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Feedback> feedbacks;
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<ChatMessage> chatMessages;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "user",  cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<Withdrawal> withdrawals;
+
     public enum Language {
         RU, KY, EN
     }

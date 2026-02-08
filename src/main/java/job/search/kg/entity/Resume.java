@@ -65,6 +65,9 @@ public class Resume {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @OneToOne(mappedBy = "resume", cascade = CascadeType.ALL, orphanRemoval = true)
+    private ResumeStatistics statistics;
+
     public enum Gender {
         MALE, FEMALE
     }
