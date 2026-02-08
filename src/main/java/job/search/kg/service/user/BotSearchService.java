@@ -263,13 +263,15 @@ public class BotSearchService {
     }
 
     private ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
-        if (resume.getUser().getPhone().isEmpty()) {
-            throw new ResourceNotFoundException("Phone is missing for resume with id: " + resume.getUser().getId());
-        }
-        String phone = resume.getUser().getPhone();
-        String maskedPhone = phone.substring(0, 6) + " *** ***";
 
         ResumeResponse response = new ResumeResponse();
+
+        if(resume.getUser().getPhone() != null ) {
+            String phone = resume.getUser().getPhone();
+            String maskedPhone = phone.substring(0, 6) + " *** ***";
+            response.setPhone(maskedPhone);
+        }
+
         response.setId(resume.getId());
         response.setName(resume.getName());
         response.setAge(resume.getAge());
@@ -279,7 +281,7 @@ public class BotSearchService {
         response.setSubcategoryName(resume.getSubcategory().getNameRu());
         response.setExperience(resume.getExperience());
         response.setDescription(resume.getDescription());
-        response.setPhone(maskedPhone);
+
 
         return response;
     }
@@ -301,19 +303,19 @@ public class BotSearchService {
     }
 
     private VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
-        if (vacancy.getPhone().isEmpty()) {
-            throw new ResourceNotFoundException("Phone is missing for vacancy with id: " + vacancy.getId());
-        }
-        String phone = vacancy.getPhone();
-        String maskedPhone = phone.substring(0, 6) + " *** ***";
-
         VacancyResponse response = new VacancyResponse();
+
+        if(vacancy.getUser().getPhone() != null ) {
+            String phone = vacancy.getPhone();
+            String maskedPhone = phone.substring(0, 6) + " *** ***";
+            response.setPhone(maskedPhone);
+        }
+
         response.setId(vacancy.getId());
         response.setTitle(vacancy.getTitle());
         response.setDescription(vacancy.getDescription());
         response.setSalary(vacancy.getSalary());
         response.setCompanyName(vacancy.getCompanyName());
-        response.setPhone(maskedPhone);
         response.setCityName(vacancy.getCity().getNameRu());
         response.setCategoryName(vacancy.getCategory().getNameRu());
         response.setSubcategoryName(vacancy.getSubcategory().getNameRu());
