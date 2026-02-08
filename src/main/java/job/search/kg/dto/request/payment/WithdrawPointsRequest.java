@@ -13,7 +13,6 @@ import lombok.Data;
 public class WithdrawPointsRequest {
 
     @NotNull(message = "Points amount is required")
-    @Min(value = 5000, message = "Minimum withdrawal is 5000 points")
     @Schema(description = "Количество баллов для вывода", example = "5000")
     private Integer pointsAmount;
 
