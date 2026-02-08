@@ -65,6 +65,12 @@ public class Vacancy {
     @Column(name = "preferred_gender")
     private GenderPreference preferredGender = GenderPreference.ANY;
 
+    private String address;
+
+    private String schedule;
+
+    private Integer experienceInYear;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

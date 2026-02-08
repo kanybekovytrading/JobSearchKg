@@ -1,5 +1,8 @@
 package job.search.kg.dto.request.user;
 
+import jakarta.persistence.Column;
+import jakarta.validation.constraints.NotNull;
+import job.search.kg.entity.Vacancy;
 import lombok.Data;
 
 @Data
@@ -12,4 +15,17 @@ public class CreateVacancyRequest {
     private Integer cityId;
     private Integer categoryId;
     private Integer subcategoryId;
+    @NotNull
+    private Integer minAge;
+    @NotNull
+    private Integer maxAge;
+    @NotNull
+    private Vacancy.GenderPreference preferredGender;
+    @NotNull
+    private String address;
+    @NotNull
+    private String schedule;
+    @NotNull
+    private Integer experienceInYear;
+
 }

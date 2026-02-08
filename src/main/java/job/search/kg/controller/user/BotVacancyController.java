@@ -1,5 +1,6 @@
 package job.search.kg.controller.user;
 
+import jakarta.validation.Valid;
 import job.search.kg.dto.request.user.CreateVacancyRequest;
 import job.search.kg.dto.response.VacancyResponse;
 import job.search.kg.dto.response.user.VacancyStatsResponse;
@@ -26,7 +27,7 @@ public class BotVacancyController {
     @PostMapping
     public ResponseEntity<Vacancy> createVacancy(
             @RequestParam Long telegramId,
-            @RequestBody CreateVacancyRequest request) {
+          @Valid @RequestBody CreateVacancyRequest request) {
         Vacancy vacancy = botVacancyService.createVacancy(telegramId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(vacancy);
     }

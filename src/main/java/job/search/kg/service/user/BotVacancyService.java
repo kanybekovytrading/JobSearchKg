@@ -82,6 +82,12 @@ public class BotVacancyService {
         vacancy.setCity(city);
         vacancy.setCategory(category);
         vacancy.setSubcategory(subcategory);
+        vacancy.setAddress(request.getAddress());
+        vacancy.setPreferredGender(request.getPreferredGender());
+        vacancy.setMinAge(request.getMinAge());
+        vacancy.setMaxAge(request.getMaxAge());
+        vacancy.setSchedule(request.getSchedule());
+        vacancy.setExperienceInYear(request.getExperienceInYear());
         vacancy.setIsActive(true);
 
         return vacancyRepository.save(vacancy);
