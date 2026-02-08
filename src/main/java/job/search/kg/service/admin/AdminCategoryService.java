@@ -40,7 +40,6 @@ public class AdminCategoryService {
         category.setNameRu(request.getNameRu());
         category.setNameKy(request.getNameKy());
         category.setNameEn(request.getNameEn());
-        category.setIcon(request.getIcon());
         category.setIsActive(true);
 
         return categoryRepository.save(category);
@@ -55,9 +54,6 @@ public class AdminCategoryService {
         }
         if (request.getNameEn() != null) {
             category.setNameEn(request.getNameEn());
-        }
-        if (request.getIcon() != null) {
-            category.setIcon(request.getIcon());
         }
         if (request.getIsActive() != null) {
             category.setIsActive(request.getIsActive());
