@@ -133,7 +133,7 @@ public class BotPointsService {
     ) throws Exception {
 
         // Валидация баллов
-        if (pointsAmount < MIN_POINTS_FOR_WITHDRAWAL) {
+        if (pointsAmount < 200) {
             throw new IllegalArgumentException(
                     String.format("Minimum withdrawal is %d points (%d KGS)",
                             MIN_POINTS_FOR_WITHDRAWAL,
