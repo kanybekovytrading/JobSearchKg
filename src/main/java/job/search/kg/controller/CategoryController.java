@@ -16,9 +16,16 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    @GetMapping("/{telegramId}")
-    public ResponseEntity<List<CustomResponse>> getAllActiveCategories(@PathVariable Long telegramId) {
-        List<CustomResponse> categories = categoryService.getAllActiveCategories(telegramId);
+    @GetMapping("/sphere/{telegramId}")
+    public ResponseEntity<List<CustomResponse>> getAllSpheres(
+            @PathVariable Long telegramId
+    ) {
+        List<CustomResponse> spheres = categoryService.getAllSpheres(telegramId);
+        return ResponseEntity.ok(spheres);
+    }
+    @GetMapping("/{telegramId}/{sphereId}")
+    public ResponseEntity<List<CustomResponse>> getAllActiveCategories(@PathVariable Long telegramId, @PathVariable Integer sphereId) {
+        List<CustomResponse> categories = categoryService.getAllActiveCategories(telegramId, sphereId);
         return ResponseEntity.ok(categories);
     }
 

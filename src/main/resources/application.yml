@@ -6,6 +6,52 @@ spring:
     username: postgres
     password: KCLQJyHRjAzTHZvJJuRpQpnRFBmBaTJo
     driver-class-name: org.postgresql.Driver
+    hikari:
+      # Максимальное количество соединений в пуле
+      maximum-pool-size: 20
+
+      # Минимальное количество простаивающих соединений
+      minimum-idle: 5
+
+      # Максимальное время ожидания соединения (30 секунд)
+      connection-timeout: 30000
+
+      # Максимальное время жизни соединения (30 минут)
+      max-lifetime: 1800000
+
+      # Время простоя соединения перед проверкой (10 минут)
+      idle-timeout: 600000
+
+      # Время ожидания валидации соединения (5 секунд)
+      validation-timeout: 5000
+
+      # SQL запрос для проверки соединения
+      connection-test-query: SELECT 1
+
+      # Автоматический коммит
+      auto-commit: true
+
+      # Имя пула (для логов)
+      pool-name: WorkKG-HikariPool
+
+      # Регистрация JMX для мониторинга
+      register-mbeans: true
+
+      # Изоляция соединений (только чтение)
+      # read-only: false
+
+      # Дополнительные свойства для PostgreSQL
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 250
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+        useLocalSessionState: true
+        rewriteBatchedStatements: true
+        cacheResultSetMetadata: true
+        cacheServerConfiguration: true
+        elideSetAutoCommits: true
+        maintainTimeStats: false
 
   jpa:
     hibernate:
@@ -15,6 +61,18 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+          order_inserts: true
+          order_updates: true
+          batch_versioned_data: true
+          cache:
+            use_second_level_cache: false
+            use_query_cache: false
+
+            # Статистика (выключить в продакшене)
+            generate_statistics: false
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -26,11 +84,28 @@ spring:
 
 server:
   port: 8080
+  tomcat:
+    threads:
+      max: 200          # Максимум потоков
+      min-spare: 10     # Минимум свободных потоков
+    max-connections: 10000  # Максимум TCP соединений
+    accept-count: 100       # Очередь запросов
+    connection-timeout: 20000
 
 jwt:
   secret: your-256-bit-secret-key-change-this-in-production
   expiration: 86400000 # 24 hours
   refresh-expiration: 604800000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 telegram:
   bot:
