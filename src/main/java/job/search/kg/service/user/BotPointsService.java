@@ -169,14 +169,14 @@ public class BotPointsService {
 
         try {
             // Создаем запрос на вывод через WithdrawalService
-            withdrawalService.createWithdrawal(
-                    telegramId,
-                    serviceId,
-                    serviceName,
-                    recipientPhone,
-                    amountInSoms,
-                    pointsTransactionId
-            );
+//            withdrawalService.createWithdrawal(
+//                    telegramId,
+//                    serviceId,
+//                    serviceName,
+//                    recipientPhone,
+//                    amountInSoms,
+//                    pointsTransactionId
+//            );
         } catch (Exception e) {
             // В случае ошибки возвращаем баллы
             addPoints(

@@ -23,13 +23,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class WithdrawalService {
+
     private final WithdrawalRepository withdrawalRepository;
     private final UserRepository userRepository;
-    private final FinikPaymentsGatewayService paymentsGatewayService;
+    private final BankWithdrawalService bankWithdrawalService;
     private final FinikWConfig finikConfig;
+    private final FinikPaymentsGatewayService paymentsGatewayService;
 
     /**
-     * Проверка получателя перед выводом
+     * ✅ ПРОВЕРКА ПОЛУЧАТЕЛЯ для конкретного банка
      */
     public CheckRecipientResponse checkRecipient(
             String serviceId,
@@ -37,51 +39,73 @@ public class WithdrawalService {
             Integer amount
     ) throws Exception {
 
-        // Форматируем номер телефона (если нужно)
+        // Находим конфигурацию банка
+        BankConfig bank = BankConfig.findByServiceId(serviceId);
+        if (bank == null) {
+            throw new IllegalArgumentException("Unknown bank service ID: " + serviceId);
+        }
+
+        // Валидация суммы
+        if (!bank.isAmountValid(amount)) {
+            throw new IllegalArgumentException(
+                    String.format("Amount must be between %d and %d for %s",
+                            bank.getMinAmount(), bank.getMaxAmount(), bank.getName())
+            );
+        }
+
+        // Форматируем номер телефона
         String formattedPhone = formatPhoneNumber(phone);
 
-        return paymentsGatewayService.checkRecipient(
-                serviceId,
+        return bankWithdrawalService.checkRecipientForBank(
+                bank.getServiceId(),
+                bank.getServiceCode(),
                 formattedPhone,
-                amount
+                amount,
+                bank.isRequiresTransactionType()  // ✅ Передаем флаг для MBank
         );
     }
 
     /**
-     * Создание запроса на вывод средств
+     * ✅ СОЗДАНИЕ ВЫВОДА для конкретного банка
      */
     @Transactional
     public Withdrawal createWithdrawal(
             Long telegramId,
             String serviceId,
-            String serviceName,
             String recipientPhone,
             BigDecimal amount,
+            String comment,
             Long pointsTransactionId
     ) throws Exception {
 
-        // 1. Валидация
-        if (amount.compareTo(BigDecimal.ONE) < 0) {
-            throw new IllegalArgumentException("Minimum withdrawal amount is 1 KGS");
+        // 1. Находим конфигурацию банка
+        BankConfig bank = BankConfig.findByServiceId(serviceId);
+        if (bank == null) {
+            throw new IllegalArgumentException("Unknown bank service ID: " + serviceId);
         }
 
-        // Максимальная сумма вывода
-        if (amount.compareTo(BigDecimal.valueOf(10000)) > 0) {
-            throw new IllegalArgumentException("Maximum withdrawal amount is 10000 KGS");
+        // 2. Валидация суммы
+        if (!bank.isAmountValid(amount.intValue())) {
+            throw new IllegalArgumentException(
+                    String.format("Amount must be between %d and %d KGS for %s",
+                            bank.getMinAmount(), bank.getMaxAmount(), bank.getName())
+            );
         }
 
         // 2. Проверяем пользователя
         User user = userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Форматируем номер телефона
+        // 4. Форматируем номер телефона
         String formattedPhone = formatPhoneNumber(recipientPhone);
 
-        // 3. Проверяем получателя
-        CheckRecipientResponse recipientCheck = paymentsGatewayService.checkRecipient(
-                serviceId,
+        // 5. Проверяем получателя
+        CheckRecipientResponse recipientCheck = bankWithdrawalService.checkRecipientForBank(
+                bank.getServiceId(),
+                bank.getServiceCode(),
                 formattedPhone,
-                amount.intValue()
+                amount.intValue(),
+                bank.isRequiresTransactionType()
         );
 
         if (recipientCheck.getStatusCode() != 200) {
@@ -89,15 +113,31 @@ public class WithdrawalService {
                     recipientCheck.getErrorMessage());
         }
 
-        // 4. Генерируем уникальный transactionId
+        String transactionType = null;
+        if (bank.isRequiresTransactionType()) {
+            transactionType = recipientCheck.getTransactionType();
+            log.info("MBank transactionType received: {}", transactionType);
+
+            if (transactionType == null) {
+                throw new RuntimeException(
+                        "MBank requires transactionType but it was not returned from checkRecipient"
+                );
+            }
+        }
+
+        log.info("Recipient validated for {}: phone={}, name={}",
+                bank.getName(), formattedPhone, recipientCheck.getName());
+
+
+        // 6. Генерируем уникальный transactionId
         String transactionId = UUID.randomUUID().toString();
 
-        // 5. Создаем запись в БД
+        // 7. Создаем запись в БД
         Withdrawal withdrawal = Withdrawal.builder()
                 .user(user)
                 .transactionId(transactionId)
-                .serviceId(serviceId)
-                .serviceName(serviceName)
+                .serviceId(bank.getServiceId())
+                .serviceName(bank.getName())
                 .recipientPhone(formattedPhone)
                 .recipientName(recipientCheck.getName())
                 .amount(amount)
@@ -109,21 +149,22 @@ public class WithdrawalService {
 
         withdrawal = withdrawalRepository.save(withdrawal);
 
-        log.info("Withdrawal record created: id={}, transactionId={}, service={}, amount={}, phone={}",
-                withdrawal.getId(), transactionId, serviceId, amount, formattedPhone);
+        log.info("Withdrawal record created: id={}, transactionId={}, bank={}, amount={}",
+                withdrawal.getId(), transactionId, bank.getName(), amount);
 
         try {
-            // 6. Отправляем запрос на вывод
-            MakePaymentResponse paymentResponse = paymentsGatewayService.makePayment(
+            // 8. Отправляем запрос на вывод
+            MakePaymentResponse paymentResponse = bankWithdrawalService.makePaymentToBank(
                     transactionId,
-                    finikConfig.getAccountId(),
-                    finikConfig.getUserId(),  // userId
-                    serviceId,
+                    bank.getServiceId(),
+                    bank.getServiceCode(),
                     formattedPhone,
-                    amount.intValue()
+                    amount.intValue(),
+                    comment,
+                    bank.isRequiresTransactionType()
             );
 
-            // 7. Обновляем статус
+            // 9. Обновляем статус
             if (paymentResponse.getStatusCode() == null ||
                     (paymentResponse.getStatusCode() != 200 && paymentResponse.getStatusCode() != 201)) {
 
@@ -150,19 +191,17 @@ public class WithdrawalService {
             } else if ("FAILED".equals(status) || "CANCELED".equals(status)) {
                 withdrawal.setStatus(Withdrawal.WithdrawalStatus.FAILED);
             } else {
-                // PENDING или PROCESSING
                 withdrawal.setStatus(Withdrawal.WithdrawalStatus.PROCESSING);
             }
 
             withdrawal = withdrawalRepository.save(withdrawal);
 
-            log.info("Withdrawal processed: id={}, finikId={}, status={}",
-                    withdrawal.getId(), paymentResponse.getId(), status);
+            log.info("Withdrawal processed to {}: id={}, finikId={}, status={}",
+                    bank.getName(), withdrawal.getId(), paymentResponse.getId(), status);
 
             return withdrawal;
 
         } catch (Exception e) {
-            // При ошибке помечаем как FAILED
             withdrawal.setStatus(Withdrawal.WithdrawalStatus.FAILED);
             withdrawal.setErrorMessage(e.getMessage());
             withdrawalRepository.save(withdrawal);
@@ -187,76 +226,36 @@ public class WithdrawalService {
         return withdrawalRepository.findByUserTelegramIdOrderByCreatedAtDesc(telegramId);
     }
 
-    /**
-     * Получение списка доступных услуг для вывода
-     */
+
     public GetServicesResponse getAvailableServices(String locale) throws Exception {
         // Получаем все активные услуги
         // Можно отфильтровать по категории (например, только мобильные операторы)
-        GetServicesResponse allServices = paymentsGatewayService.getAvailableServices(
+        return paymentsGatewayService.getAvailableServices(
                 0,      // from
-                50,     // size (максимум)
+                 50,     // size (максимум)
                 locale, // язык (RU, EN, KY)
                 "kyrgyzstan"    // parentId (null = все услуги)
         );
-
-//        List<ServiceDTO> filteredServices = allServices.getServices()
-//                .stream()
-//                .filter(service -> {
-//                    String nameRu = service.getName_ru();
-//                    if (nameRu == null) return false;
-//
-//                    // Фильтруем только банкинги и платежные системы
-//                    return nameRu.toLowerCase().contains("o!") ||
-//                            nameRu.toLowerCase().contains("megacom") ||
-//                            nameRu.toLowerCase().contains("beeline") ||
-//                            nameRu.toLowerCase().contains("банк") ||
-//                            nameRu.toLowerCase().contains("элсом") ||
-//                            nameRu.toLowerCase().contains("оптима") ||
-//                            nameRu.toLowerCase().contains("bakai") ||
-//                            nameRu.toLowerCase().contains("demir") ||
-//                            nameRu.toLowerCase().contains("rsk") ||
-//                            nameRu.toLowerCase().contains("dos") ||
-//                            nameRu.toLowerCase().contains("айыл") ||
-//                            nameRu.toLowerCase().contains("кыргызстан") ||
-//                            nameRu.toLowerCase().contains("компаньон") ||
-//                            nameRu.toLowerCase().contains("halyk") ||
-//                            nameRu.toLowerCase().contains("mbank");
-//                })
-//                .filter(service -> "ENABLED".equals(service.getStatus())) // Только активные
-//                .toList();
-//
-//        allServices.setServices(filteredServices);
-//        allServices.setTotal(filteredServices.size());
-//
-//        log.info("Found {} payment services", filteredServices.size());
-
-        return allServices;
     }
 
     /**
      * Форматирование номера телефона
-     * Преобразует в формат +996XXXXXXXXX
      */
     private String formatPhoneNumber(String phone) {
-        // Убираем все кроме цифр
         String cleaned = phone.replaceAll("[^0-9]", "");
 
-        // Если начинается с 996, добавляем +
         if (cleaned.startsWith("996")) {
-            return "+" + cleaned;
+            return cleaned;
         }
 
-        // Если начинается с 0, заменяем на +996
         if (cleaned.startsWith("0")) {
-            return "+996" + cleaned.substring(1);
+            return "996" + cleaned.substring(1);
         }
 
-        // Если только 9 цифр, добавляем +996
         if (cleaned.length() == 9) {
-            return "+996" + cleaned;
+            return "996" + cleaned;
         }
 
-        return "+" + cleaned;
+        return  cleaned;
     }
 }

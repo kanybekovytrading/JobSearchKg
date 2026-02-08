@@ -1,22 +1,22 @@
 package job.search.kg.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import job.search.kg.dto.request.payment.CreateWithdrawalRequest;
 import job.search.kg.dto.response.payment.CheckRecipientResponse;
 import job.search.kg.dto.response.payment.GetServicesResponse;
-import job.search.kg.dto.response.payment.WithdrawalInfo;
-import job.search.kg.dto.response.payment.WithdrawalResponse;
 import job.search.kg.entity.Withdrawal;
+import job.search.kg.payment.BankConfig;
 import job.search.kg.payment.WithdrawalService;
 import job.search.kg.service.user.BotPointsService;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -28,123 +28,6 @@ public class WithdrawalController {
     private final WithdrawalService withdrawalService;
     private final BotPointsService pointsService;
 
-    @Operation(
-            summary = "Информация о доступном выводе",
-            description = "Возвращает баланс баллов пользователя и доступную сумму для вывода"
-    )
-    @GetMapping("/info/{telegramId}")
-    public ResponseEntity<WithdrawalInfo> getWithdrawalInfo(
-            @PathVariable Long telegramId
-    ) {
-        WithdrawalInfo info = pointsService.getWithdrawalInfo(telegramId);
-        return ResponseEntity.ok(info);
-    }
-
-    @Operation(
-            summary = "Создать запрос на вывод баллов",
-            description = "Конвертирует баллы в сомы и создает заявку на вывод"
-    )
-    @PostMapping("/withdraw/{telegramId}")
-    public ResponseEntity<String> withdrawPoints(
-            @PathVariable Long telegramId,
-            @RequestParam Integer points,
-            @RequestBody CreateWithdrawalRequest request
-    ) throws Exception {
-
-        pointsService.withdrawPointsToMoney(
-                telegramId,
-                points,
-                request.getServiceId(),
-                request.getServiceName(),
-                request.getRecipientPhone()
-        );
-
-        return ResponseEntity.ok("Withdrawal request created successfully");
-    }
-    /**
-     * Проверка получателя перед выводом
-     * GET /api/bot/withdrawals/check-recipient?serviceId=averspay&phone=+996XXXXXXXXX&amount=100
-     */
-    @GetMapping("/check-recipient")
-    @Operation(summary = "Проверить получателя",
-            description = "Проверяет существование получателя в указанной системе перед выводом")
-    public ResponseEntity<CheckRecipientResponse> checkRecipient(
-            @RequestParam String serviceId,
-            @RequestParam String phone,
-            @RequestParam Integer amount
-    ) {
-        try {
-            log.info("Checking recipient: serviceId={}, phone={}, amount={}", serviceId, phone, amount);
-
-            CheckRecipientResponse response = withdrawalService.checkRecipient(serviceId, phone, amount);
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("Error checking recipient", e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    /**
-     * Создание запроса на вывод средств
-     * POST /api/bot/withdrawals/{telegramId}
-     */
-    @PostMapping("/{telegramId}")
-    @Operation(summary = "Создать вывод средств",
-            description = "Создает запрос на вывод средств на указанную услугу")
-    public ResponseEntity<WithdrawalResponse> createWithdrawal(
-            @PathVariable Long telegramId,
-            @RequestBody CreateWithdrawalRequest request
-    ) {
-        try {
-            log.info("Creating withdrawal: telegramId={}, serviceId={}, phone={}, amount={}",
-                    telegramId, request.getServiceId(), request.getRecipientPhone(), request.getAmount());
-
-            Withdrawal withdrawal = withdrawalService.createWithdrawal(
-                    telegramId,
-                    request.getServiceId(),
-                    request.getServiceName(),
-                    request.getRecipientPhone(),
-                    request.getAmount(), 1L
-            );
-
-            WithdrawalResponse response = mapToResponse(withdrawal);
-
-            log.info("Withdrawal created: id={}, status={}",
-                    withdrawal.getId(), withdrawal.getStatus());
-
-            return ResponseEntity.ok(response);
-
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid withdrawal request: {}", e.getMessage());
-            return ResponseEntity.badRequest().build();
-
-        } catch (Exception e) {
-            log.error("Error creating withdrawal", e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    /**
-     * Получение информации о выводе
-     * GET /api/bot/withdrawals/{withdrawalId}
-     */
-    @GetMapping("/detail/{withdrawalId}")
-    @Operation(summary = "Получить информацию о выводе")
-    public ResponseEntity<WithdrawalResponse> getWithdrawal(
-            @PathVariable Long withdrawalId
-    ) {
-        try {
-            Withdrawal withdrawal = withdrawalService.getWithdrawal(withdrawalId);
-            WithdrawalResponse response = mapToResponse(withdrawal);
-
-            return ResponseEntity.ok(response);
-
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
 
     /**
      * Получение списка доступных услуг для вывода
@@ -170,27 +53,146 @@ public class WithdrawalController {
     }
 
     /**
-     * История выводов пользователя
-     * GET /api/bot/withdrawals/history/{telegramId}
+     * ✅ ПОЛУЧИТЬ СПИСОК ДОСТУПНЫХ БАНКОВ
      */
-    @GetMapping("/history/{telegramId}")
+    @Operation(
+            summary = "Получить список банков",
+            description = "Возвращает список всех доступных банков для вывода средств с их лимитами"
+    )
+    @GetMapping("/banks")
+    public ResponseEntity<List<BankInfo>> getAvailableBanks() {
+        List<BankInfo> banks = Arrays.stream(BankConfig.values())
+                .map(bank -> new BankInfo(
+                        bank.getServiceId(),
+                        bank.getName(),
+                        bank.getMinAmount(),
+                        bank.getMaxAmount()
+                ))
+                .toList();
+
+        return ResponseEntity.ok(banks);
+    }
+
+    /**
+     * ✅ ПРОВЕРКА ПОЛУЧАТЕЛЯ
+     */
+    @Operation(
+            summary = "Проверить получателя",
+            description = "Проверяет, что получатель существует в выбранном банке"
+    )
+    @ApiResponse(responseCode = "200", description = "Получатель найден")
+    @PostMapping("/check-recipient")
+    public ResponseEntity<CheckRecipientResponse> checkRecipient(
+            @RequestParam String serviceId,
+
+            @RequestParam String phone,
+
+            @RequestParam Integer amount
+    ) throws Exception {
+
+        CheckRecipientResponse response = withdrawalService.checkRecipient(serviceId, phone, amount);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * ✅ СОЗДАНИЕ ВЫВОДА
+     */
+    @Operation(
+            summary = "Создать вывод в банк",
+            description = "Создает вывод средств в выбранный банк по номеру телефона. " +
+                    "Используйте GET /api/withdrawal/banks для получения списка доступных банков."
+    )
+    @ApiResponse(responseCode = "200", description = "Вывод успешно создан")
+    @PostMapping("/create/{telegramId}")
+    public ResponseEntity<WithdrawalResponse> createWithdrawal(
+            @PathVariable Long telegramId,
+            @RequestBody CreateWithdrawalRequest request
+    ) throws Exception {
+
+        log.info("Creating withdrawal: telegramId={}, bank={}, phone={}, amount={}",
+                telegramId, request.getServiceId(),
+                request.getRecipientPhone(), request.getAmount());
+
+        Withdrawal withdrawal = withdrawalService.createWithdrawal(
+                 telegramId,
+                request.getServiceId(),  // ID банка
+                request.getRecipientPhone(),
+                request.getAmount(),
+                request.getComment(),
+                1L
+        );
+
+        return ResponseEntity.ok(mapToResponse(withdrawal));
+    }
+
+    /**
+     * История выводов
+     */
     @Operation(summary = "История выводов пользователя")
-    public ResponseEntity<List<WithdrawalResponse>> getUserWithdrawals(
-            @PathVariable Long telegramId
+    @GetMapping("/history")
+    public ResponseEntity<List<WithdrawalResponse>> getHistory(
+            @RequestParam Long telegramId
     ) {
-        try {
-            List<Withdrawal> withdrawals = withdrawalService.getUserWithdrawals(telegramId);
+        List<Withdrawal> withdrawals = withdrawalService.getUserWithdrawals(telegramId);
+        List<WithdrawalResponse> response = withdrawals.stream()
+                .map(this::mapToResponse)
+                .toList();
 
-            List<WithdrawalResponse> responses = withdrawals.stream()
-                    .map(this::mapToResponse)
-                    .collect(Collectors.toList());
+        return ResponseEntity.ok(response);
+    }
 
-            return ResponseEntity.ok(responses);
+    /**
+     * Детали вывода
+     */
+    @Operation(summary = "Детали вывода")
+    @GetMapping("/{withdrawalId}")
+    public ResponseEntity<WithdrawalResponse> getWithdrawal(
+            @PathVariable Long withdrawalId
+    ) {
+        Withdrawal withdrawal = withdrawalService.getWithdrawal(withdrawalId);
+        return ResponseEntity.ok(mapToResponse(withdrawal));
+    }
 
-        } catch (Exception e) {
-            log.error("Error fetching withdrawal history", e);
-            return ResponseEntity.internalServerError().build();
+    // DTO классы
+
+    @Data
+    public static class BankInfo {
+        private String serviceId;
+        private String name;
+        private int minAmount;
+        private int maxAmount;
+
+        public BankInfo(String serviceId, String name, int minAmount, int maxAmount) {
+            this.serviceId = serviceId;
+            this.name = name;
+            this.minAmount = minAmount;
+            this.maxAmount = maxAmount;
         }
+    }
+
+    @Data
+    public static class CreateWithdrawalRequest {
+        private String serviceId;          // ✅ ID банка (обязательно!)
+        private String recipientPhone;     // Номер телефона
+        private BigDecimal amount;         // Сумма
+        private String comment;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class WithdrawalResponse {
+        private Long id;
+        private String transactionId;
+        private String bankName;
+        private String recipientPhone;
+        private String recipientName;
+        private BigDecimal amount;
+        private String status;
+        private java.time.LocalDateTime createdAt;
+        private java.time.LocalDateTime completedAt;
+        private String errorMessage;
     }
 
     /**
@@ -200,13 +202,10 @@ public class WithdrawalController {
         return WithdrawalResponse.builder()
                 .id(withdrawal.getId())
                 .transactionId(withdrawal.getTransactionId())
-                .finikTransactionId(withdrawal.getFinikTransactionId())
-                .serviceId(withdrawal.getServiceId())
-                .serviceName(withdrawal.getServiceName())
                 .recipientPhone(withdrawal.getRecipientPhone())
                 .recipientName(withdrawal.getRecipientName())
                 .amount(withdrawal.getAmount())
-                .status(withdrawal.getStatus())
+                .status(String.valueOf(withdrawal.getStatus()))
                 .createdAt(withdrawal.getCreatedAt())
                 .completedAt(withdrawal.getCompletedAt())
                 .errorMessage(withdrawal.getErrorMessage())

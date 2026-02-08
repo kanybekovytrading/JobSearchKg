@@ -1,6 +1,7 @@
 package job.search.kg.dto.response.payment;
 
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -29,4 +30,11 @@ public class CheckRecipientResponse {
      * Сообщение об ошибке (если есть)
      */
     private String errorMessage;
+
+    @JsonProperty("transactionType")
+    private String transactionType;  // MBank возвращает это поле
+
+    // Дополнительные поля которые могут прийти
+    @JsonProperty("fields")
+    private Object fields;
 }
