@@ -20,7 +20,6 @@ import java.time.LocalDateTime;
 @Tag(name = "Admin Payment Analytics", description = "Аналитика платежей (админ)")
 public class AdminPaymentAnalyticsController {
 
-
     private final PaymentService paymentService;
 
     @GetMapping("/analytics")
