@@ -1,5 +1,6 @@
 package job.search.kg.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -72,6 +73,7 @@ public class Vacancy {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @JsonIgnore
     @OneToOne(mappedBy = "vacancy", cascade = CascadeType.ALL, orphanRemoval = true)
     private VacancyStatistics statistics;
 
