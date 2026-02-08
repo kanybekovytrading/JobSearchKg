@@ -109,16 +109,10 @@ public class BotPaymentService {
         }
     }
 
-    private BigDecimal getAmountForPlan(Subscription.PlanType planType) {
-        return switch (planType) {
-            case ONE_WEEK -> new BigDecimal("150.00");
-            case ONE_MONTH -> new BigDecimal("500.00");
-            case THREE_MONTHS -> new BigDecimal("1200.00");
-        };
-    }
 
     private String getPlanName(Subscription.PlanType planType) {
         return switch (planType) {
+            case THREE_DAYS -> "3 дня";
             case ONE_WEEK -> "1 неделя";
             case ONE_MONTH -> "1 месяц";
             case THREE_MONTHS -> "3 месяца";

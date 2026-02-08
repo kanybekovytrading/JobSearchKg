@@ -92,6 +92,7 @@ public class AdminSubscriptionService {
 
     private LocalDateTime calculateEndDate(LocalDateTime startDate, Subscription.PlanType planType) {
         return switch (planType) {
+            case THREE_DAYS -> startDate.plusDays(3);
             case ONE_WEEK -> startDate.plusDays(7);
             case ONE_MONTH -> startDate.plusDays(30);
             case THREE_MONTHS -> startDate.plusDays(90);
@@ -100,6 +101,7 @@ public class AdminSubscriptionService {
 
     private String getPlanName(Subscription.PlanType planType) {
         return switch (planType) {
+            case THREE_DAYS -> "3 дня";
             case ONE_WEEK -> "1 неделя";
             case ONE_MONTH -> "1 месяц";
             case THREE_MONTHS -> "3 месяца";

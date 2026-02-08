@@ -206,6 +206,7 @@ public class PaymentService {
 
     private int getSubscriptionCost(Subscription.PlanType planType) {
         return switch (planType) {
+            case THREE_DAYS -> 1;
             case ONE_WEEK -> 1;      // 150 сом = 1500 баллов
             case ONE_MONTH -> 5;     // 500 сом = 5000 баллов
             case THREE_MONTHS -> 10; // 1200 сом = 12000 баллов
@@ -214,6 +215,7 @@ public class PaymentService {
 
     private String getSubscriptionTrans(Subscription.PlanType planType) {
         return switch (planType) {
+            case THREE_DAYS -> "3-дневный";
             case ONE_WEEK -> "Недельный";      // 150 сом = 1500 баллов
             case ONE_MONTH -> "1-месячный";     // 500 сом = 5000 баллов
             case THREE_MONTHS -> "3-месячный"; // 1200 сом = 12000 баллов

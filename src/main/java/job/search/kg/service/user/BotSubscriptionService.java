@@ -84,6 +84,7 @@ public class BotSubscriptionService {
 
     private LocalDateTime calculateEndDate(LocalDateTime startDate, Subscription.PlanType planType) {
         return switch (planType) {
+            case THREE_DAYS -> startDate.plusDays(3);
             case ONE_WEEK -> startDate.plusDays(7);
             case ONE_MONTH -> startDate.plusDays(30);
             case THREE_MONTHS -> startDate.plusDays(90);
