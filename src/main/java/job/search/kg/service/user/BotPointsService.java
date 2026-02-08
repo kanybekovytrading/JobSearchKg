@@ -11,10 +11,12 @@ import job.search.kg.exceptions.InsufficientBalanceException;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 @Service
@@ -28,10 +30,13 @@ public class BotPointsService {
     private final WithdrawalService withdrawalService;
 
     // Константы обмена
-    private static final int POINTS_PER_SOM = 10;           // 10 баллов = 1 сом
-    private static final int MIN_POINTS_FOR_WITHDRAWAL = 1000;  // Минимум 1000 баллов = 100 сом
-    private static final int MAX_WITHDRAWAL_SOMS = 1000;    // Максимум 1000 сом
-
+    // 1 балл = 5 тыйын = 0.05 сом
+    // 100 баллов = 5 сом
+    // 5000 баллов = 250 сом (минимум на вывод)
+    // 20000 баллов = 1000 сом (максимум на вывод)
+    private static final int POINTS_PER_SOM = 20;              // 20 баллов = 1 сом
+    private static final int MIN_POINTS_FOR_WITHDRAWAL = 5000; // Минимум 5000 баллов = 250 сом
+    private static final int MAX_WITHDRAWAL_SOMS = 1000;       // Максимум 1000 сом
 
     @Transactional
     public void addPoints(Long telegramId, Integer amount, PointsTransaction.TransactionType type, String description) {
@@ -47,7 +52,6 @@ public class BotPointsService {
         transaction.setType(type);
         transaction.setDescription(description);
         transactionRepository.save(transaction);
-
     }
 
     @Transactional
@@ -69,7 +73,6 @@ public class BotPointsService {
         transaction.setDescription(description);
         transactionRepository.save(transaction);
         return transaction.getId();
-
     }
 
     @Transactional(readOnly = true)
@@ -94,10 +97,7 @@ public class BotPointsService {
         return user.getBalance() >= requiredAmount;
     }
 
-    /**
-     * Покупка подписки за баллы
-     * 1500 баллов = 150 сом
-     */
+
     @Transactional
     public void purchaseSubscriptionWithPoints(Long telegramId, Subscription.PlanType subscriptionType) {
         if (botSubscriptionService.hasActiveSubscription(telegramId)) {
@@ -119,16 +119,16 @@ public class BotPointsService {
 
     /**
      * Обмен баллов на деньги и вывод
-     * 50 баллов = 5 сом
-     * Минимум: 1000 баллов = 100 сом
-     * Максимум: 10000 баллов = 1000 сом
+     * 1 балл = 0.05 сом (5 тыйын)
+     * 100 баллов = 5 сом
+     * Минимум: 5000 баллов = 250 сом
+     * Максимум: 20000 баллов = 1000 сом
      */
     @Transactional
     public void withdrawPointsToMoney(
             Long telegramId,
             Integer pointsAmount,
             String serviceId,
-            String serviceName,
             String recipientPhone
     ) throws Exception {
 
@@ -146,21 +146,12 @@ public class BotPointsService {
             throw new InsufficientBalanceException("Insufficient balance for withdrawal");
         }
 
-        // Конвертируем баллы в сомы
-        BigDecimal amountInSoms = BigDecimal.valueOf(pointsAmount)
-                .divide(BigDecimal.valueOf(POINTS_PER_SOM));
-
-        // Проверяем максимум
-        if (amountInSoms.compareTo(BigDecimal.valueOf(MAX_WITHDRAWAL_SOMS)) > 0) {
-            throw new IllegalArgumentException(
-                    String.format("Maximum withdrawal is %d KGS (%d points)",
-                            MAX_WITHDRAWAL_SOMS,
-                            MAX_WITHDRAWAL_SOMS * POINTS_PER_SOM)
-            );
-        }
+        // Конвертируем баллы в сомы: points / 20 = soms
+        // Используем BigDecimal для точности
+        BigDecimal amountInSoms = getBigDecimal(pointsAmount);
 
         // Списываем баллы
-       long pointsTransactionId =  deductPoints(
+        long pointsTransactionId = deductPoints(
                 telegramId,
                 pointsAmount,
                 PointsTransaction.TransactionType.WITHDRAWAL,
@@ -169,14 +160,14 @@ public class BotPointsService {
 
         try {
             // Создаем запрос на вывод через WithdrawalService
-//            withdrawalService.createWithdrawal(
-//                    telegramId,
-//                    serviceId,
-//                    serviceName,
-//                    recipientPhone,
-//                    amountInSoms,
-//                    pointsTransactionId
-//            );
+            withdrawalService.createWithdrawal(
+                    telegramId,
+                    serviceId,
+                    recipientPhone,
+                    amountInSoms,
+                    "Обмен баллов на деньги",
+                    pointsTransactionId
+            );
         } catch (Exception e) {
             // В случае ошибки возвращаем баллы
             addPoints(
@@ -187,6 +178,21 @@ public class BotPointsService {
             );
             throw e;
         }
+    }
+
+    private static @NonNull BigDecimal getBigDecimal(Integer pointsAmount) {
+        BigDecimal amountInSoms = BigDecimal.valueOf(pointsAmount)
+                .divide(BigDecimal.valueOf(POINTS_PER_SOM), 2, RoundingMode.DOWN);
+
+        // Проверяем максимум
+        if (amountInSoms.compareTo(BigDecimal.valueOf(MAX_WITHDRAWAL_SOMS)) > 0) {
+            throw new IllegalArgumentException(
+                    String.format("Maximum withdrawal is %d KGS (%d points)",
+                            MAX_WITHDRAWAL_SOMS,
+                            MAX_WITHDRAWAL_SOMS * POINTS_PER_SOM)
+            );
+        }
+        return amountInSoms;
     }
 
     /**
@@ -214,9 +220,10 @@ public class BotPointsService {
 
     private int getSubscriptionPointsCost(Subscription.PlanType planType) {
         return switch (planType) {
-            case ONE_WEEK -> 1500;      // 150 сом = 1500 баллов
-            case ONE_MONTH -> 5000;     // 500 сом = 5000 баллов
-            case THREE_MONTHS -> 12000; // 1200 сом = 12000 баллов
+            case THREE_DAYS -> 5000;      // 50 рефералов
+            case ONE_WEEK -> 10000;       // 100 рефералов
+            case ONE_MONTH -> 30000;      // 300 рефералов
+            case THREE_MONTHS -> throw new IllegalArgumentException("THREE_MONTHS subscription not supported for points purchase");
         };
     }
 }

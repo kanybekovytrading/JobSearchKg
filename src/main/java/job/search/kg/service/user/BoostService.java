@@ -36,7 +36,7 @@ public class BoostService {
 
     // Стоимость буста
     private static final int BOOST_COST_SOMS = 20;      // 20 сом за день
-    private static final int BOOST_COST_POINTS = 200;   // 200 баллов за день
+    private static final int BOOST_COST_POINTS = 400;   // 200 баллов за день
     private static final int BOOST_DURATION_HOURS = 24; // 24 часа
 
     /**

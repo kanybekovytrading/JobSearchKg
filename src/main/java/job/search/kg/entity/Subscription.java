@@ -48,6 +48,7 @@ public class Subscription {
     private LocalDateTime createdAt;
 
     public enum PlanType {
+        THREE_DAYS,
         ONE_WEEK,
         ONE_MONTH,
         THREE_MONTHS
