@@ -19,7 +19,7 @@ public class BotBoostController {
             summary = "Поднять вакансию за баллы",
             description = "Стоимость: 200 баллов за 24 часа. Вакансия будет отображаться в топе результатов поиска."
     )
-    @PostMapping("/vacancies/{vacancyId}/boost/points")
+    @PostMapping("/vacancies/{vacancyId}/points")
     public ResponseEntity<VacancyBoost> boostVacancyWithPoints(
             @RequestParam Long telegramId,
             @PathVariable Long vacancyId) {
@@ -30,7 +30,7 @@ public class BotBoostController {
             summary = "Поднять вакансию за деньги",
             description = "Стоимость: 20 сом за 24 часа. Вакансия будет отображаться в топе результатов поиска."
     )
-    @PostMapping("/vacancies/{vacancyId}/boost/money")
+    @PostMapping("/vacancies/{vacancyId}/money")
     public ResponseEntity<CreatePaymentResponse> boostVacancyWithMoney(
             @RequestParam Long telegramId,
             @PathVariable Long vacancyId) throws Exception {
@@ -43,7 +43,7 @@ public class BotBoostController {
             summary = "Поднять резюме за баллы",
             description = "Стоимость: 200 баллов за 24 часа. Резюме будет отображаться в топе результатов поиска."
     )
-    @PostMapping("/resumes/{resumeId}/boost/points")
+    @PostMapping("/resumes/{resumeId}/points")
     public ResponseEntity<ResumeBoost> boostResumeWithPoints(
             @RequestParam Long telegramId,
             @PathVariable Long resumeId) {
@@ -54,7 +54,7 @@ public class BotBoostController {
             summary = "Поднять резюме за деньги",
             description = "Стоимость: 20 сом за 24 часа. Резюме будет отображаться в топе результатов поиска."
     )
-    @PostMapping("/resumes/{resumeId}/boost/money")
+    @PostMapping("/resumes/{resumeId}/money")
     public ResponseEntity<CreatePaymentResponse> boostResumeWithMoney(
             @RequestParam Long telegramId,
             @PathVariable Long resumeId) throws Exception {
@@ -67,7 +67,7 @@ public class BotBoostController {
             summary = "Проверить статус Boost вакансии",
             description = "Возвращает true, если Boost активен в данный момент"
     )
-    @GetMapping("/vacancies/{vacancyId}/boost/status")
+    @GetMapping("/vacancies/{vacancyId}/status")
     public ResponseEntity<Boolean> checkVacancyBoostStatus(@PathVariable Long vacancyId) {
         return ResponseEntity.ok(boostService.hasActiveVacancyBoost(vacancyId));
     }
@@ -76,7 +76,7 @@ public class BotBoostController {
             summary = "Проверить статус Boost резюме",
             description = "Возвращает true, если Boost активен в данный момент"
     )
-    @GetMapping("/resumes/{resumeId}/boost/status")
+    @GetMapping("/resumes/{resumeId}/status")
     public ResponseEntity<Boolean> checkResumeBoostStatus(@PathVariable Long resumeId) {
         return ResponseEntity.ok(boostService.hasActiveResumeBoost(resumeId));
     }

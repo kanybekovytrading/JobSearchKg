@@ -1,11 +1,13 @@
 package job.search.kg.payment;
 
+import job.search.kg.dto.response.admin.PaymentAnalyticsResponse;
 import job.search.kg.dto.response.user.CreatePaymentResponse;
 import job.search.kg.dto.response.user.PaymentResponse;
 import job.search.kg.entity.Payment;
 import job.search.kg.entity.Subscription;
 import job.search.kg.entity.User;
 import job.search.kg.repo.PaymentRepository;
+import job.search.kg.repo.SubscriptionRepository;
 import job.search.kg.repo.UserRepository;
 import job.search.kg.service.user.BotSubscriptionService;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -28,7 +31,93 @@ public class PaymentService {
     private final UserRepository userRepository;
     private final FinikPaymentService finikPaymentService;
     private final BotSubscriptionService botSubscriptionService;
+    private final SubscriptionRepository subscriptionRepository;
     private final FinikConfig finikConfig;
+
+    private static final BigDecimal PAYMENT_GATEWAY_FEE_PERCENTAGE = new BigDecimal("0.02"); // 2%
+    private static final BigDecimal PARTNER_SHARE_PERCENTAGE = new BigDecimal("0.25");        // 25%
+
+    /**
+     * ✅ АНАЛИТИКА ПЛАТЕЖЕЙ С ФИЛЬТРОМ ПО ДАТАМ
+     */
+    @Transactional(readOnly = true)
+    public PaymentAnalyticsResponse getPaymentAnalytics(
+            LocalDateTime startDate,
+            LocalDateTime endDate
+    ) {
+        // Если даты не указаны, берем все время
+        if (startDate == null) {
+            startDate = LocalDateTime.of(2000, 1, 1, 0, 0);
+        }
+        if (endDate == null) {
+            endDate = LocalDateTime.now();
+        }
+
+        // Активные подписки (на текущий момент)
+        Long activeSubscriptions = subscriptionRepository.countByIsActive(true);
+
+        // Всего куплено подписок за период
+        Long totalSubscriptions = subscriptionRepository
+                .countByCreatedAtBetween(startDate, endDate);
+
+        // Все платежи за период
+        List<Payment> allPayments = paymentRepository
+                .findByCreatedAtBetween(startDate, endDate);
+
+        // Успешные платежи
+        BigDecimal totalPaid = allPayments.stream()
+                .filter(p -> p.getStatus() == Payment.PaymentStatus.SUCCESS)
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Ожидающие
+        BigDecimal totalPending = allPayments.stream()
+                .filter(p -> p.getStatus() == Payment.PaymentStatus.PENDING)
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Неудачные
+        BigDecimal totalFailed = allPayments.stream()
+                .filter(p -> p.getStatus() == Payment.PaymentStatus.FAILED)
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Расчет комиссий и долей
+        BigDecimal totalRevenue = totalPaid;
+
+        // 1. Комиссия платежной системы 2%
+        BigDecimal paymentGatewayFee = totalRevenue
+                .multiply(PAYMENT_GATEWAY_FEE_PERCENTAGE)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // 2. Сумма после комиссии платежки
+        BigDecimal afterGatewayFee = totalRevenue
+                .subtract(paymentGatewayFee)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // 3. Доля партнера 25% (от суммы после платежки)
+        BigDecimal partnerShare = afterGatewayFee
+                .multiply(PARTNER_SHARE_PERCENTAGE)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // 4. Чистая прибыль (остаток)
+        BigDecimal netProfit = afterGatewayFee
+                .subtract(partnerShare)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        return PaymentAnalyticsResponse.builder()
+                .activeSubscriptionsCount(activeSubscriptions)
+                .totalSubscriptionsPurchased(totalSubscriptions)
+                .totalRevenue(totalRevenue)
+                .paymentGatewayFee(paymentGatewayFee)
+                .afterGatewayFee(afterGatewayFee)
+                .partnerShare(partnerShare)
+                .netProfit(netProfit)
+                .totalPaid(totalPaid)
+                .totalPending(totalPending)
+                .totalFailed(totalFailed)
+                .build();
+    }
 
     /**
      * Создание платежа для теста

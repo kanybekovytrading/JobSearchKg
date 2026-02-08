@@ -1,8 +1,10 @@
-package job.search.kg.controller;
+package job.search.kg.controller.admin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import job.search.kg.dto.response.admin.WithdrawalAnalyticsResponse;
+import job.search.kg.dto.response.admin.WithdrawalListItemResponse;
 import job.search.kg.dto.response.payment.CheckRecipientResponse;
 import job.search.kg.dto.response.payment.GetServicesResponse;
 import job.search.kg.entity.Withdrawal;
@@ -11,6 +13,10 @@ import job.search.kg.payment.WithdrawalService;
 import job.search.kg.service.user.BotPointsService;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,15 +26,66 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/bot/withdrawals")
+@RequestMapping("/api/admin/withdrawals")
 @Tag(name = "Withdrawals", description = "Эндпоинты для вывода средств")
 @RequiredArgsConstructor
-public class WithdrawalController {
+public class AdminWithdrawalController {
 
     private final WithdrawalService withdrawalService;
     private final BotPointsService pointsService;
 
+    @GetMapping("/analytics")
+    @Operation(summary = "Аналитика выплат")
+    public ResponseEntity<WithdrawalAnalyticsResponse> getAnalytics() {
+        log.info("Get withdrawals analytics request");
 
+        WithdrawalAnalyticsResponse analytics = withdrawalService.getWithdrawalAnalytics();
+        return ResponseEntity.ok(analytics);
+    }
+
+    @GetMapping("/list")
+    @Operation(summary = "Список всех выплат с пагинацией")
+    public ResponseEntity<Page<WithdrawalListItemResponse>> getWithdrawalsList(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDirection
+    ) {
+        log.info("Get withdrawals list: page={}, size={}, sortBy={}, sortDirection={}",
+                page, size, sortBy, sortDirection);
+
+        Sort.Direction direction = sortDirection.equalsIgnoreCase("asc")
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<WithdrawalListItemResponse> withdrawals = withdrawalService.getWithdrawalsList(pageable);
+        return ResponseEntity.ok(withdrawals);
+    }
+
+    @GetMapping("/list/status/{status}")
+    @Operation(summary = "Список выплат по статусу")
+    public ResponseEntity<Page<WithdrawalListItemResponse>> getWithdrawalsByStatus(
+            @PathVariable Withdrawal.WithdrawalStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDirection
+    ) {
+        log.info("Get withdrawals by status: status={}, page={}, size={}",
+                status, page, size);
+
+        Sort.Direction direction = sortDirection.equalsIgnoreCase("asc")
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+        Page<WithdrawalListItemResponse> withdrawals =
+                withdrawalService.getWithdrawalsByStatus(status, pageable);
+        return ResponseEntity.ok(withdrawals);
+    }
     /**
      * Получение списка доступных услуг для вывода
      * GET /api/bot/withdrawals/services?locale=RU

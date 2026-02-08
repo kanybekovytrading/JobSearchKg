@@ -26,4 +26,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     @Modifying
     @Query("UPDATE Subscription s SET s.isActive = false WHERE s.isActive = true AND s.endDate < :currentDate")
     int deactivateExpiredSubscriptions(@Param("currentDate") LocalDateTime currentDate);
+
+    Long countByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
+
 }

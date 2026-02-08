@@ -1,18 +1,25 @@
 package job.search.kg.payment;
 
+import job.search.kg.dto.response.admin.WithdrawalAnalyticsResponse;
+import job.search.kg.dto.response.admin.WithdrawalListItemResponse;
 import job.search.kg.dto.response.payment.CheckRecipientResponse;
 import job.search.kg.dto.response.payment.GetServicesResponse;
 import job.search.kg.dto.response.payment.MakePaymentResponse;
+import job.search.kg.entity.PointsTransaction;
 import job.search.kg.entity.User;
 import job.search.kg.entity.Withdrawal;
+import job.search.kg.repo.PointsTransactionRepository;
 import job.search.kg.repo.UserRepository;
 import job.search.kg.repo.WithdrawalRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -29,6 +36,127 @@ public class WithdrawalService {
     private final BankWithdrawalService bankWithdrawalService;
     private final FinikWConfig finikConfig;
     private final FinikPaymentsGatewayService paymentsGatewayService;
+    private final PointsTransactionRepository pointsTransactionRepository;
+    private static final BigDecimal PLATFORM_FEE_PERCENTAGE = new BigDecimal("0.01"); // 1%
+
+    /**
+     * ✅ АНАЛИТИКА ВЫПЛАТ
+     */
+    @Transactional(readOnly = true)
+    public WithdrawalAnalyticsResponse getWithdrawalAnalytics() {
+
+        // Все выплаты
+        List<Withdrawal> allWithdrawals = withdrawalRepository.findAll();
+
+        // Подсчет по статусам
+        long total = allWithdrawals.size();
+        long successful = allWithdrawals.stream()
+                .filter(w -> w.getStatus() == Withdrawal.WithdrawalStatus.SUCCEEDED)
+                .count();
+        long failed = allWithdrawals.stream()
+                .filter(w -> w.getStatus() == Withdrawal.WithdrawalStatus.FAILED)
+                .count();
+        long pending = allWithdrawals.stream()
+                .filter(w -> w.getStatus() == Withdrawal.WithdrawalStatus.PENDING)
+                .count();
+        long processing = allWithdrawals.stream()
+                .filter(w -> w.getStatus() == Withdrawal.WithdrawalStatus.PROCESSING)
+                .count();
+
+        // Сумма успешных выплат
+        BigDecimal totalAmountPaid = allWithdrawals.stream()
+                .filter(w -> w.getStatus() == Withdrawal.WithdrawalStatus.SUCCEEDED)
+                .map(Withdrawal::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Комиссия платформы (1% от успешных выплат)
+        BigDecimal platformFee = totalAmountPaid
+                .multiply(PLATFORM_FEE_PERCENTAGE)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // Общая сумма с комиссией
+        BigDecimal totalWithFee = totalAmountPaid.add(platformFee);
+
+        // Подсчет баллов
+        Long totalPointsWithdrawn = allWithdrawals.stream()
+                .filter(w -> w.getStatus() == Withdrawal.WithdrawalStatus.SUCCEEDED)
+                .filter(w -> w.getPointsTransactionId() != null)
+                .map(w -> {
+                    PointsTransaction pt = pointsTransactionRepository
+                            .findById(w.getPointsTransactionId())
+                            .orElse(null);
+                    return pt != null ? Math.abs(pt.getAmount()) : 0;
+                })
+                .mapToLong(Integer::longValue)
+                .sum();
+
+        return WithdrawalAnalyticsResponse.builder()
+                .totalWithdrawals(total)
+                .successfulWithdrawals(successful)
+                .failedWithdrawals(failed)
+                .pendingWithdrawals(pending)
+                .processingWithdrawals(processing)
+                .totalAmountPaid(totalAmountPaid)
+                .platformFee(platformFee)
+                .totalWithFee(totalWithFee)
+                .totalPointsWithdrawn(totalPointsWithdrawn)
+                .build();
+    }
+
+    /**
+     * ✅ СПИСОК ВЫПЛАТ С ПАГИНАЦИЕЙ
+     */
+    @Transactional(readOnly = true)
+    public Page<WithdrawalListItemResponse> getWithdrawalsList(Pageable pageable) {
+
+        Page<Withdrawal> withdrawals = withdrawalRepository.findAll(pageable);
+
+        return withdrawals.map(this::mapToListItem);
+    }
+
+    /**
+     * ✅ СПИСОК ВЫПЛАТ ПО СТАТУСУ
+     */
+    @Transactional(readOnly = true)
+    public Page<WithdrawalListItemResponse> getWithdrawalsByStatus(
+            Withdrawal.WithdrawalStatus status,
+            Pageable pageable
+    ) {
+        Page<Withdrawal> withdrawals = withdrawalRepository.findByStatus(status, pageable);
+
+        return withdrawals.map(this::mapToListItem);
+    }
+
+    /**
+     * Маппинг Withdrawal -> WithdrawalListItemResponse
+     */
+    private WithdrawalListItemResponse mapToListItem(Withdrawal withdrawal) {
+
+        // Получаем количество баллов
+        Integer points = null;
+        if (withdrawal.getPointsTransactionId() != null) {
+            PointsTransaction pt = pointsTransactionRepository
+                    .findById(withdrawal.getPointsTransactionId())
+                    .orElse(null);
+            if (pt != null) {
+                points = Math.abs(pt.getAmount());
+            }
+        }
+
+        return WithdrawalListItemResponse.builder()
+                .id(withdrawal.getId())
+                .telegramId(withdrawal.getUser().getTelegramId())
+                .recipientPhone(withdrawal.getRecipientPhone())
+                .recipientName(withdrawal.getRecipientName())
+                .amount(withdrawal.getAmount())
+                .points(points)
+                .paymentMethod(withdrawal.getServiceName())
+                .status(withdrawal.getStatus())
+                .createdAt(withdrawal.getCreatedAt())
+                .completedAt(withdrawal.getCompletedAt())
+                .errorMessage(withdrawal.getErrorMessage())
+                .build();
+    }
 
     /**
      * ✅ ПРОВЕРКА ПОЛУЧАТЕЛЯ для конкретного банка
