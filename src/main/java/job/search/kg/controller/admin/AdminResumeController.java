@@ -1,6 +1,8 @@
 package job.search.kg.controller.admin;
 
+import job.search.kg.dto.response.admin.ResumeResponse;
 import job.search.kg.entity.Resume;
+import job.search.kg.mapper.ResumeMapper;
 import job.search.kg.service.admin.AdminResumeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,19 +18,21 @@ import org.springframework.web.bind.annotation.*;
 public class AdminResumeController {
 
     private final AdminResumeService adminResumeService;
+    private final ResumeMapper resumeMapper;
 
     @GetMapping
-    public ResponseEntity<Page<Resume>> getAllResumes(Pageable pageable) {
+    public ResponseEntity<Page<ResumeResponse>> getAllResumes(Pageable pageable) {
         Page<Resume> resumes = adminResumeService.getAllResumes(pageable);
-        return ResponseEntity.ok(resumes);
+        Page<ResumeResponse> response = resumes.map(resumeMapper::toResponse);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Resume> getResumeById(@PathVariable Long id) {
+    public ResponseEntity<ResumeResponse> getResumeById(@PathVariable Long id) {
         Resume resume = adminResumeService.getResumeById(id);
-        return ResponseEntity.ok(resume);
+        ResumeResponse response = resumeMapper.toResponse(resume);
+        return ResponseEntity.ok(response);
     }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteResume(@PathVariable Long id) {
         adminResumeService.deleteResume(id);
