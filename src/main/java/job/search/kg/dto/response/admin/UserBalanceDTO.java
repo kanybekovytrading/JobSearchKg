@@ -1,4 +1,5 @@
 package job.search.kg.dto.response.admin;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

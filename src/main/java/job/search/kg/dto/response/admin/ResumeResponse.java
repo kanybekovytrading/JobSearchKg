@@ -2,6 +2,7 @@ package job.search.kg.dto.response.admin;
 
 
 import lombok.Data;
+
 import java.time.LocalDateTime;
 
 @Data

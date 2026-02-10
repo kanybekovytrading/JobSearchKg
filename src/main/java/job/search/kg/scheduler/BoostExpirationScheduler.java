@@ -22,6 +22,7 @@ public class BoostExpirationScheduler {
     private final VacancyBoostRepository vacancyBoostRepository;
     private final ResumeBoostRepository resumeBoostRepository;
     private final BoostNotificationService notificationService;
+
     /**
      * Деактивация истекших бустов вакансий
      * Запускается каждый час

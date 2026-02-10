@@ -23,6 +23,7 @@ public class CategoryController {
         List<CustomResponse> spheres = categoryService.getAllSpheres(telegramId);
         return ResponseEntity.ok(spheres);
     }
+
     @GetMapping("/{telegramId}/{sphereId}")
     public ResponseEntity<List<CustomResponse>> getAllActiveCategories(@PathVariable Long telegramId, @PathVariable Integer sphereId) {
         List<CustomResponse> categories = categoryService.getAllActiveCategories(telegramId, sphereId);

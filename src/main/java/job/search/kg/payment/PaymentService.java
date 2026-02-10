@@ -27,15 +27,14 @@ import java.util.UUID;
 public class PaymentService {
 
 
+    private static final BigDecimal PAYMENT_GATEWAY_FEE_PERCENTAGE = new BigDecimal("0.02"); // 2%
+    private static final BigDecimal PARTNER_SHARE_PERCENTAGE = new BigDecimal("0.25");        // 25%
     private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
     private final FinikPaymentService finikPaymentService;
     private final BotSubscriptionService botSubscriptionService;
     private final SubscriptionRepository subscriptionRepository;
     private final FinikConfig finikConfig;
-
-    private static final BigDecimal PAYMENT_GATEWAY_FEE_PERCENTAGE = new BigDecimal("0.02"); // 2%
-    private static final BigDecimal PARTNER_SHARE_PERCENTAGE = new BigDecimal("0.25");        // 25%
 
     /**
      * ✅ АНАЛИТИКА ПЛАТЕЖЕЙ С ФИЛЬТРОМ ПО ДАТАМ
@@ -139,11 +138,11 @@ public class PaymentService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
 
-       boolean hasActiveSubs =  botSubscriptionService.hasActiveSubscription(telegramId);
+        boolean hasActiveSubs = botSubscriptionService.hasActiveSubscription(telegramId);
 
-       if(hasActiveSubs){
-           throw new RuntimeException("Already have active subscription. Wait its expiration and try again");
-       }
+        if (hasActiveSubs) {
+            throw new RuntimeException("Already have active subscription. Wait its expiration and try again");
+        }
         // 5. Создаем запись в БД СНАЧАЛА
         Payment payment = new Payment();
         payment.setUser(user);
@@ -190,6 +189,7 @@ public class PaymentService {
             throw e;
         }
     }
+
     @Transactional
     public CreatePaymentResponse createPayment(
             Long telegramId,
@@ -208,9 +208,9 @@ public class PaymentService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
 
-        boolean hasActiveSubs =  botSubscriptionService.hasActiveSubscription(telegramId);
+        boolean hasActiveSubs = botSubscriptionService.hasActiveSubscription(telegramId);
 
-        if(hasActiveSubs){
+        if (hasActiveSubs) {
             throw new RuntimeException("Already have active subscription. Wait its expiration and try again");
         }
         // 5. Создаем запись в БД СНАЧАЛА

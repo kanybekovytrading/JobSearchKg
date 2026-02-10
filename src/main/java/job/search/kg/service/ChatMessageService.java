@@ -63,6 +63,7 @@ public class ChatMessageService {
                 messagesPage.getTotalElements()
         );
     }
+
     private ChatMessage.SenderType parseSenderType(String type) {
         try {
             return ChatMessage.SenderType.valueOf(type.toUpperCase());

@@ -12,10 +12,13 @@ import java.util.Optional;
 @Repository
 public interface VacancyBoostRepository extends JpaRepository<VacancyBoost, Long> {
     boolean existsByVacancyIdAndIsActiveTrueAndExpiresAtAfter(Long vacancyId, LocalDateTime now);
+
     List<VacancyBoost> findByVacancyIdAndIsActiveTrue(Long vacancyId);
+
     List<VacancyBoost> findByUserTelegramIdOrderByCreatedAtDesc(Long telegramId);
 
     Optional<VacancyBoost> findByPaymentId(String paymentId);
+
     List<VacancyBoost> findByIsActiveTrueAndExpiresAtBefore(LocalDateTime dateTime);
 
     List<VacancyBoost> findByIsActiveTrueAndExpiresAtBetween(LocalDateTime start, LocalDateTime end);

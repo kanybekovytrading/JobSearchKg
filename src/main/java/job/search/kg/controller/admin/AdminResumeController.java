@@ -33,6 +33,7 @@ public class AdminResumeController {
         ResumeResponse response = resumeMapper.toResponse(resume);
         return ResponseEntity.ok(response);
     }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteResume(@PathVariable Long id) {
         adminResumeService.deleteResume(id);

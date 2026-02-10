@@ -39,23 +39,24 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
-                        .authorizeHttpRequests(auth -> auth
-                                // Public endpoints
-                                .requestMatchers(
-                                        "/api/admin/auth/**",
-                                        "/api/bot/**",
-                                        "/api/cities/**",
-                                        "/api-docs/**",
-                                        "/swagger-ui/**",
-                                        "/api/categories/**",
-                                        "/api/subcategories/**",
-                                        "/v3/api-docs/**",
-                                        "/admin/analytics/**",
-                                        "/api/statistic/**"
-                                ).permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .anyRequest().authenticated()
-                        )
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
+                        .requestMatchers(
+                                "/api/admin/auth/**",
+                                "/api/bot/**",
+                                "/api/cities/**",
+                                "/api-docs/**",
+                                "/swagger-ui/**",
+                                "/api/categories/**",
+                                "/api/subcategories/**",
+                                "/v3/api-docs/**",
+                                "/admin/analytics/**",
+                                "/api/statistic/**",
+                                "/api/ai/**"
+                        ).permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .anyRequest().authenticated()
+                )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )

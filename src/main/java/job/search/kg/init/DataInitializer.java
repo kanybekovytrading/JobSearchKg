@@ -41,7 +41,7 @@ public class DataInitializer implements CommandLineRunner {
             log.info("✅ Инициализировано {} городов", cities.size());
         }
 
-        if (!adminRepository.existsByEmail("admin@gmail.com")){
+        if (!adminRepository.existsByEmail("admin@gmail.com")) {
             Admin admin = Admin.builder()
                     .name("Администратор")
                     .email("admin@gmail.com")

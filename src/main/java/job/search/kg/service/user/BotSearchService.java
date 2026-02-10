@@ -13,6 +13,7 @@ import job.search.kg.entity.VacancyStatistics;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class BotSearchService {
@@ -266,7 +268,7 @@ public class BotSearchService {
 
         ResumeResponse response = new ResumeResponse();
 
-        if(resume.getUser().getPhone() != null && !resume.getUser().getPhone().isEmpty()) {
+        if (resume.getUser().getPhone() != null && !resume.getUser().getPhone().isEmpty()) {
             String phone = resume.getUser().getPhone();
             String maskedPhone = phone.substring(0, 6) + " *** ***";
             response.setPhone(maskedPhone);
@@ -288,29 +290,23 @@ public class BotSearchService {
 
     private VacancyResponse mapVacancyToResponse(Vacancy vacancy) {
         VacancyResponse response = new VacancyResponse();
-        response.setId(vacancy.getId());
-        response.setTitle(vacancy.getTitle());
-        response.setDescription(vacancy.getDescription());
-        response.setSalary(vacancy.getSalary());
-        response.setCompanyName(vacancy.getCompanyName());
         response.setPhone(vacancy.getPhone());
-        response.setCityName(vacancy.getCity().getNameRu());
-        response.setCategoryName(vacancy.getCategory().getNameRu());
-        response.setSubcategoryName(vacancy.getSubcategory().getNameRu());
-        response.setCreatedAt(vacancy.getCreatedAt());
-        response.setTelegramUsername(vacancy.getUser().getUsername());
-        return response;
+        return getVacancyResponse(vacancy, response);
     }
 
     private VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
         VacancyResponse response = new VacancyResponse();
 
-        if(vacancy.getUser().getPhone() != null  && !vacancy.getUser().getPhone().isEmpty() ) {
+        if (vacancy.getUser().getPhone() != null && !vacancy.getUser().getPhone().isEmpty()) {
             String phone = vacancy.getPhone();
             String maskedPhone = phone.substring(0, 6) + " *** ***";
             response.setPhone(maskedPhone);
         }
+        return getVacancyResponse(vacancy, response);
+    }
 
+    @NonNull
+    private VacancyResponse getVacancyResponse(Vacancy vacancy, VacancyResponse response) {
         response.setId(vacancy.getId());
         response.setTitle(vacancy.getTitle());
         response.setDescription(vacancy.getDescription());
@@ -320,6 +316,13 @@ public class BotSearchService {
         response.setCategoryName(vacancy.getCategory().getNameRu());
         response.setSubcategoryName(vacancy.getSubcategory().getNameRu());
         response.setCreatedAt(vacancy.getCreatedAt());
+        response.setTelegramUsername(vacancy.getUser().getUsername());
+        response.setExperienceInYear(vacancy.getExperienceInYear());
+        response.setAddress(vacancy.getAddress());
+        response.setMaxAge(vacancy.getMaxAge());
+        response.setMinAge(vacancy.getMinAge());
+        response.setPreferredGender(vacancy.getPreferredGender());
+        response.setSchedule(vacancy.getSchedule());
 
         return response;
     }

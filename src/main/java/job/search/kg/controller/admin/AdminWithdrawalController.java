@@ -86,6 +86,7 @@ public class AdminWithdrawalController {
                 withdrawalService.getWithdrawalsByStatus(status, pageable);
         return ResponseEntity.ok(withdrawals);
     }
+
     /**
      * Получение списка доступных услуг для вывода
      * GET /api/bot/withdrawals/services?locale=RU
@@ -171,7 +172,7 @@ public class AdminWithdrawalController {
                 request.getRecipientPhone(), request.getAmount());
 
         Withdrawal withdrawal = withdrawalService.createWithdrawal(
-                 telegramId,
+                telegramId,
                 request.getServiceId(),  // ID банка
                 request.getRecipientPhone(),
                 request.getAmount(),
@@ -212,6 +213,23 @@ public class AdminWithdrawalController {
 
     // DTO классы
 
+    /**
+     * Маппинг Withdrawal -> WithdrawalResponse
+     */
+    private WithdrawalResponse mapToResponse(Withdrawal withdrawal) {
+        return WithdrawalResponse.builder()
+                .id(withdrawal.getId())
+                .transactionId(withdrawal.getTransactionId())
+                .recipientPhone(withdrawal.getRecipientPhone())
+                .recipientName(withdrawal.getRecipientName())
+                .amount(withdrawal.getAmount())
+                .status(String.valueOf(withdrawal.getStatus()))
+                .createdAt(withdrawal.getCreatedAt())
+                .completedAt(withdrawal.getCompletedAt())
+                .errorMessage(withdrawal.getErrorMessage())
+                .build();
+    }
+
     @Data
     public static class BankInfo {
         private String serviceId;
@@ -250,22 +268,5 @@ public class AdminWithdrawalController {
         private java.time.LocalDateTime createdAt;
         private java.time.LocalDateTime completedAt;
         private String errorMessage;
-    }
-
-    /**
-     * Маппинг Withdrawal -> WithdrawalResponse
-     */
-    private WithdrawalResponse mapToResponse(Withdrawal withdrawal) {
-        return WithdrawalResponse.builder()
-                .id(withdrawal.getId())
-                .transactionId(withdrawal.getTransactionId())
-                .recipientPhone(withdrawal.getRecipientPhone())
-                .recipientName(withdrawal.getRecipientName())
-                .amount(withdrawal.getAmount())
-                .status(String.valueOf(withdrawal.getStatus()))
-                .createdAt(withdrawal.getCreatedAt())
-                .completedAt(withdrawal.getCompletedAt())
-                .errorMessage(withdrawal.getErrorMessage())
-                .build();
     }
 }

@@ -21,15 +21,15 @@ public class CityService {
 
     @Transactional(readOnly = true)
     public List<CustomResponse> getAllActiveCities(Long telegramId) {
-       User user =  userRepository.findByTelegramId(telegramId).orElseThrow(
-                ()-> new ResourceNotFoundException("User not found")
+        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
         );
-        List<City> cities =  cityRepository.findByIsActive(true);
+        List<City> cities = cityRepository.findByIsActive(true);
 
-    return  cities.stream().map(city -> {
+        return cities.stream().map(city -> {
             return CustomResponse.builder()
                     .id(city.getId())
-                    .name(user.getLanguage().equals(User.Language.EN) ? city.getNameEn(): city.getNameRu())
+                    .name(user.getLanguage().equals(User.Language.EN) ? city.getNameEn() : city.getNameRu())
                     .build();
         }).toList();
     }
@@ -38,12 +38,12 @@ public class CityService {
     public CustomResponse getCityById(Integer id, Long telegramId) {
         City city = cityRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("City not found"));
-        User user =  userRepository.findByTelegramId(telegramId).orElseThrow(
-                ()-> new ResourceNotFoundException("User not found")
+        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
         );
         return CustomResponse.builder()
                 .id(city.getId())
-                .name(user.getLanguage().equals(User.Language.EN) ? city.getNameEn(): city.getNameRu())
+                .name(user.getLanguage().equals(User.Language.EN) ? city.getNameEn() : city.getNameRu())
                 .build();
     }
 }

@@ -1,5 +1,6 @@
 package job.search.kg.controller.user;
 
+import jakarta.validation.Valid;
 import job.search.kg.dto.request.user.CreateResumeRequest;
 import job.search.kg.dto.response.ResumeResponseDto;
 import job.search.kg.dto.response.user.ResumeResponse;
@@ -67,5 +68,13 @@ public class BotResumeController {
 
         ResumeResponseDto responseDto = ResumeResponseDto.fromEntity(resume, resume.getUser().getLanguage());
         return ResponseEntity.ok(responseDto);
+    }
+
+    @PutMapping("/{resumeId}/update/{telegramId}")
+    public ResponseEntity<Resume> updateResume(
+            @PathVariable Long resumeId,
+            @PathVariable Long telegramId,
+            @Valid @RequestBody CreateResumeRequest request) {
+        return ResponseEntity.ok(botResumeService.updateResume(resumeId, telegramId, request));
     }
 }

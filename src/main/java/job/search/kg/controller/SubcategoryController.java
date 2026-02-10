@@ -17,13 +17,13 @@ public class SubcategoryController {
     private final SubcategoryService subcategoryService;
 
     @GetMapping("/category/{telegramId}/{categoryId}")
-    public ResponseEntity<List<CustomResponse>> getSubcategoriesByCategory(@PathVariable Integer categoryId,@PathVariable Long telegramId) {
+    public ResponseEntity<List<CustomResponse>> getSubcategoriesByCategory(@PathVariable Integer categoryId, @PathVariable Long telegramId) {
         List<CustomResponse> subcategories = subcategoryService.getSubcategoriesByCategory(categoryId, telegramId);
         return ResponseEntity.ok(subcategories);
     }
 
     @GetMapping("/{telegramId}/{id}")
-    public ResponseEntity<CustomResponse> getSubcategoryById(@PathVariable Integer id,@PathVariable Long telegramId) {
+    public ResponseEntity<CustomResponse> getSubcategoryById(@PathVariable Integer id, @PathVariable Long telegramId) {
         CustomResponse subcategory = subcategoryService.getSubcategoryById(id, telegramId);
         return ResponseEntity.ok(subcategory);
     }

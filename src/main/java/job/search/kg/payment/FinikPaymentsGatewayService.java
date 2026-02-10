@@ -151,7 +151,6 @@ public class FinikPaymentsGatewayService {
         );
 
 
-
         // Отправка запроса
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setContentType(MediaType.APPLICATION_JSON);
@@ -161,7 +160,7 @@ public class FinikPaymentsGatewayService {
 
         String jsonBody = objectMapper.writeValueAsString(request);
         HttpEntity<String> entity = new HttpEntity<>(jsonBody, httpHeaders);
-        log.info("URL: {}", uri.toString());
+        log.info("URL: {}", uri);
         log.info("Timestamp: {}", timestamp);
         log.info("API Key: {}", config.getApiKey());
         log.info("Signature: {}", signature);

@@ -28,7 +28,7 @@ public class BotReferralService {
 
         Long referralsCount = userRepository.countByReferrer(referrer);
 
-        if(referralsCount >= 200){
+        if (referralsCount >= 200) {
             String message = getReferralLimitMessage(referrer.getLanguage());
             telegramService.sendMessage(referrerId, message);
             return;
@@ -69,7 +69,7 @@ public class BotReferralService {
         ReferralInfoResponse response = new ReferralInfoResponse();
         response.setReferralCode(user.getReferralCode());
         response.setReferralLink(referralLink);
-       response.setReferralsCount(referralsCount.intValue());
+        response.setReferralsCount(referralsCount.intValue());
         response.setRewardPerReferral(100);
 
         return response;

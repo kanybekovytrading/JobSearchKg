@@ -27,7 +27,7 @@ public class BotVacancyController {
     @PostMapping
     public ResponseEntity<Vacancy> createVacancy(
             @RequestParam Long telegramId,
-          @Valid @RequestBody CreateVacancyRequest request) {
+            @Valid @RequestBody CreateVacancyRequest request) {
         Vacancy vacancy = botVacancyService.createVacancy(telegramId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(vacancy);
     }
@@ -41,7 +41,7 @@ public class BotVacancyController {
     @DeleteMapping("/{vacancyId}")
     public ResponseEntity<Void> deleteVacancy(
             @PathVariable Long vacancyId,
-            @RequestParam Long telegramId){
+            @RequestParam Long telegramId) {
         botVacancyService.deleteVacancy(vacancyId, telegramId);
         return ResponseEntity.noContent().build();
     }
@@ -68,4 +68,13 @@ public class BotVacancyController {
         job.search.kg.dto.response.admin.VacancyResponse response = vacancyMapper.toResponse(vacancy, vacancy.getUser().getLanguage());
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/{vacancyId}/update/{telegramId}")
+    public ResponseEntity<Vacancy> updateVacancy(
+            @PathVariable Long vacancyId,
+            @PathVariable Long telegramId,
+            @Valid @RequestBody CreateVacancyRequest request) {
+        return ResponseEntity.ok(botVacancyService.updateVacancy(vacancyId, telegramId, request));
+    }
+
 }

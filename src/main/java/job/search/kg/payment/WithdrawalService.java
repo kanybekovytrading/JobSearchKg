@@ -31,13 +31,13 @@ import java.util.UUID;
 @Slf4j
 public class WithdrawalService {
 
+    private static final BigDecimal PLATFORM_FEE_PERCENTAGE = new BigDecimal("0.01"); // 1%
     private final WithdrawalRepository withdrawalRepository;
     private final UserRepository userRepository;
     private final BankWithdrawalService bankWithdrawalService;
     private final FinikWConfig finikConfig;
     private final FinikPaymentsGatewayService paymentsGatewayService;
     private final PointsTransactionRepository pointsTransactionRepository;
-    private static final BigDecimal PLATFORM_FEE_PERCENTAGE = new BigDecimal("0.01"); // 1%
 
     /**
      * ✅ АНАЛИТИКА ВЫПЛАТ
@@ -299,12 +299,12 @@ public class WithdrawalService {
                 withdrawal.setStatus(Withdrawal.WithdrawalStatus.FAILED);
                 withdrawal.setErrorMessage(paymentResponse.getErrorMessage());
                 withdrawalRepository.save(withdrawal);
-
                 throw new RuntimeException("Payment failed: " + paymentResponse.getErrorMessage());
             }
 
             // Обновляем данные транзакции
             withdrawal.setFinikTransactionId(paymentResponse.getId());
+            log.error("Payment response: {}", paymentResponse);
 
             // Определяем статус
             String status = paymentResponse.getStatus();
@@ -331,6 +331,7 @@ public class WithdrawalService {
 
         } catch (Exception e) {
             withdrawal.setStatus(Withdrawal.WithdrawalStatus.FAILED);
+            log.info("WITHDRAWAL ERROR MSG{}", e.getMessage());
             withdrawal.setErrorMessage(e.getMessage());
             withdrawalRepository.save(withdrawal);
 
@@ -360,7 +361,7 @@ public class WithdrawalService {
         // Можно отфильтровать по категории (например, только мобильные операторы)
         return paymentsGatewayService.getAvailableServices(
                 0,      // from
-                 50,     // size (максимум)
+                50,     // size (максимум)
                 locale, // язык (RU, EN, KY)
                 "kyrgyzstan"    // parentId (null = все услуги)
         );
@@ -384,6 +385,6 @@ public class WithdrawalService {
             return "996" + cleaned;
         }
 
-        return  cleaned;
+        return cleaned;
     }
 }

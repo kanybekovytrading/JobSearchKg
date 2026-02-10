@@ -96,7 +96,7 @@ public class User {
     private List<ChatMessage> chatMessages;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "user",  cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Withdrawal> withdrawals;
 
     public enum Language {

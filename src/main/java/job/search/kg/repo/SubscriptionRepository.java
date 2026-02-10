@@ -1,4 +1,5 @@
 package job.search.kg.repo;
+
 import job.search.kg.entity.Subscription;
 import job.search.kg.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;

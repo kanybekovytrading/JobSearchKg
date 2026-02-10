@@ -1,4 +1,5 @@
 package job.search.kg.controller.user;
+
 import job.search.kg.dto.request.user.SaveMessageRequest;
 import job.search.kg.dto.response.admin.ChatHistoryResponse;
 import job.search.kg.service.ChatMessageService;

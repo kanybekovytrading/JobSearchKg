@@ -9,7 +9,10 @@ import java.util.List;
 @Repository
 public interface VacancyReviewRepository extends JpaRepository<VacancyReview, Long> {
     boolean existsByVacancyIdAndUserId(Long vacancyId, Long userId);
+
     List<VacancyReview> findByVacancyIdOrderByCreatedAtDesc(Long vacancyId);
+
     List<VacancyReview> findByVacancyIdAndIsSpamFalseOrderByCreatedAtDesc(Long vacancyId);
+
     List<VacancyReview> findByUserIdOrderByCreatedAtDesc(Long userId);
 }

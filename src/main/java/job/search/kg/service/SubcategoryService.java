@@ -24,8 +24,8 @@ public class SubcategoryService {
 
     @Transactional(readOnly = true)
     public List<CustomResponse> getSubcategoriesByCategory(Integer categoryId, Long telegramId) {
-        User user =  userRepository.findByTelegramId(telegramId).orElseThrow(
-                ()-> new ResourceNotFoundException("User not found")
+        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
         );
         List<Subcategory> responses = subcategoryRepository.findByCategoryIdAndIsActive(categoryId, true);
         return responses.stream()
@@ -39,15 +39,15 @@ public class SubcategoryService {
 
     @Transactional(readOnly = true)
     public CustomResponse getSubcategoryById(Integer id, Long telegramId) {
-        User user =  userRepository.findByTelegramId(telegramId).orElseThrow(
-                ()-> new ResourceNotFoundException("User not found")
+        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
         );
         Subcategory subcategory = subcategoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subcategory not found"));
 
         return CustomResponse.builder()
                 .id(subcategory.getId())
-                .name(user.getLanguage().equals(EN) ? subcategory.getNameEn(): subcategory.getNameRu())
+                .name(user.getLanguage().equals(EN) ? subcategory.getNameEn() : subcategory.getNameRu())
                 .build();
     }
 

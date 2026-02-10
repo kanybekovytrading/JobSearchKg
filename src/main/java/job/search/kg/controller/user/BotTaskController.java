@@ -1,4 +1,5 @@
 package job.search.kg.controller.user;
+
 import job.search.kg.dto.request.user.CompleteTaskRequest;
 import job.search.kg.dto.response.user.TaskListResponse;
 import job.search.kg.entity.UserTask;

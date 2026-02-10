@@ -70,6 +70,7 @@ public class AdminUserController {
     public ResponseEntity<UserProfileDTO> getUserProfile(@PathVariable Long userId) {
         return ResponseEntity.ok(adminUserService.getUserProfile(userId));
     }
+
     /**
      * Получить информацию об активности (подписках)
      */

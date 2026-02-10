@@ -99,6 +99,6 @@ public class BotUserService {
             user.setLanguage(User.Language.valueOf(request.getLanguage().toUpperCase()));
         }
 
-         userRepository.save(user);
+        userRepository.save(user);
     }
 }

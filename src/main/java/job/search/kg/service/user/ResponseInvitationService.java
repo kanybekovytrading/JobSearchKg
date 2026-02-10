@@ -251,10 +251,8 @@ public class ResponseInvitationService {
                     resume.getGender() != Resume.Gender.MALE) {
                 return false;
             }
-            if (vacancy.getPreferredGender() == Vacancy.GenderPreference.FEMALE &&
-                    resume.getGender() != Resume.Gender.FEMALE) {
-                return false;
-            }
+            return vacancy.getPreferredGender() != Vacancy.GenderPreference.FEMALE ||
+                    resume.getGender() == Resume.Gender.FEMALE;
         }
 
         return true;

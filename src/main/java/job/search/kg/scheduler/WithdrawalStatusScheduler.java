@@ -26,12 +26,11 @@ import java.util.List;
 @Slf4j
 public class WithdrawalStatusScheduler {
 
+    private static final DateTimeFormatter DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private final WithdrawalRepository withdrawalRepository;
     private final FinikPaymentsGatewayService paymentsGatewayService;
     private final TelegramService telegramService;
-
-    private static final DateTimeFormatter DATE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     /**
      * Каждые 30 секунд проверяем статус выводов в PROCESSING
@@ -72,6 +71,7 @@ public class WithdrawalStatusScheduler {
                     // Для критических ошибок (403, 404) можем пометить как FAILED
                     if (statusResponse.getStatusCode() == 403 || statusResponse.getStatusCode() == 404) {
                         withdrawal.setStatus(Withdrawal.WithdrawalStatus.FAILED);
+                        log.info("SCHEDULER FAILED PAYMENT {}", statusResponse.getErrorMessage());
                         withdrawal.setErrorMessage(statusResponse.getErrorMessage());
                         withdrawalRepository.save(withdrawal);
                         sendWithdrawalFailedNotification(withdrawal);
@@ -212,7 +212,6 @@ public class WithdrawalStatusScheduler {
                     user.getLanguage(),
                     withdrawal.getAmount()
             );
-
             telegramService.sendMessage(user.getTelegramId(), message);
             log.info("Sent timeout notification for withdrawal {}", withdrawal.getId());
         } catch (Exception e) {

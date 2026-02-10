@@ -15,12 +15,10 @@ import java.util.Map;
 @Slf4j
 public class TelegramService {
 
+    private static final String TELEGRAM_API_URL = "https://api.telegram.org/bot";
     private final RestTemplate restTemplate;
-
     @Value("${telegram.bot.token}")
     private String botToken;
-
-    private static final String TELEGRAM_API_URL = "https://api.telegram.org/bot";
 
     public void sendMessage(Long chatId, String text) {
         String url = TELEGRAM_API_URL + botToken + "/sendMessage";

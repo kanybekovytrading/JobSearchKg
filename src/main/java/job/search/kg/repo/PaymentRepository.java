@@ -18,6 +18,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByStatusAndCreatedAtBefore(Payment.PaymentStatus paymentStatus, LocalDateTime thirtyMinutesAgo);
 
     Optional<Payment> findByTransactionId(String transactionId);
+
     List<Payment> findByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate);
 
 }

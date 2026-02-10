@@ -41,6 +41,7 @@ public class AdminCategoryController {
         Category category = adminCategoryService.createCategory(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(category);
     }
+
     @PutMapping("/{id}")
     public ResponseEntity<Category> updateCategory(
             @PathVariable Integer id,

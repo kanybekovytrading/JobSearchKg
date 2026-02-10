@@ -9,7 +9,10 @@ import java.util.List;
 @Repository
 public interface VacancyResponseRepository extends JpaRepository<VacancyResponse, Long> {
     boolean existsByVacancyIdAndResumeId(Long vacancyId, Long resumeId);
+
     List<VacancyResponse> findByVacancyIdOrderByCreatedAtDesc(Long vacancyId);
+
     List<VacancyResponse> findByApplicantTelegramIdOrderByCreatedAtDesc(Long telegramId);
+
     List<VacancyResponse> findByResumeIdOrderByCreatedAtDesc(Long resumeId);
 }

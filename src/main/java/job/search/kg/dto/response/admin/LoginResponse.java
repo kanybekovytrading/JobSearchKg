@@ -1,7 +1,7 @@
 package job.search.kg.dto.response.admin;
 
- import job.search.kg.entity.Admin;
- import lombok.Data;
+import job.search.kg.entity.Admin;
+import lombok.Data;
 
 @Data
 public class LoginResponse {

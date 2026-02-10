@@ -115,6 +115,74 @@ public class BotVacancyService {
         vacancyRepository.delete(vacancy);
     }
 
+    @Transactional
+    public Vacancy updateVacancy(Long vacancyId, Long telegramId, CreateVacancyRequest request) {
+        Vacancy vacancy = vacancyRepository.findById(vacancyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+
+        if (!vacancy.getUser().getTelegramId().equals(telegramId)) {
+            throw new AccessDeniedException("Access denied");
+        }
+
+        // Обновляем город если изменился
+        if (request.getCityId() != null && !vacancy.getCity().getId().equals(request.getCityId())) {
+            City city = cityRepository.findById(request.getCityId())
+                    .orElseThrow(() -> new ResourceNotFoundException("City not found"));
+            vacancy.setCity(city);
+        }
+
+        // Обновляем категорию если изменилась
+        if (request.getCategoryId() != null && !vacancy.getCategory().getId().equals(request.getCategoryId())) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+            vacancy.setCategory(category);
+        }
+
+        // Обновляем подкатегорию если изменилась
+        if (request.getSubcategoryId() != null && !vacancy.getSubcategory().getId().equals(request.getSubcategoryId())) {
+            Subcategory subcategory = subcategoryRepository.findById(request.getSubcategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Subcategory not found"));
+            vacancy.setSubcategory(subcategory);
+        }
+
+        // Обновляем остальные поля
+        if (request.getTitle() != null) {
+            vacancy.setTitle(request.getTitle());
+        }
+        if (request.getDescription() != null) {
+            vacancy.setDescription(request.getDescription());
+        }
+        if (request.getSalary() != null) {
+            vacancy.setSalary(request.getSalary());
+        }
+        if (request.getCompanyName() != null) {
+            vacancy.setCompanyName(request.getCompanyName());
+        }
+        if (request.getPhone() != null) {
+            vacancy.setPhone(request.getPhone());
+        }
+        if (request.getAddress() != null) {
+            vacancy.setAddress(request.getAddress());
+        }
+        if (request.getPreferredGender() != null) {
+            vacancy.setPreferredGender(request.getPreferredGender());
+        }
+        if (request.getMinAge() != null) {
+            vacancy.setMinAge(request.getMinAge());
+        }
+        if (request.getMaxAge() != null) {
+            vacancy.setMaxAge(request.getMaxAge());
+        }
+        if (request.getSchedule() != null) {
+            vacancy.setSchedule(request.getSchedule());
+        }
+        if (request.getExperienceInYear() != null) {
+            vacancy.setExperienceInYear(request.getExperienceInYear());
+        }
+
+        return vacancyRepository.save(vacancy);
+    }
+
     private VacancyResponse mapToResponse(Vacancy vacancy) {
         VacancyResponse response = new VacancyResponse();
         response.setId(vacancy.getId());

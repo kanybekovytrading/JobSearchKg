@@ -12,6 +12,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,7 +24,6 @@ import java.util.UUID;
 public class PaymentController {
 
     private final PaymentService paymentService;
-    private final FinikWebhookService webhookService;
 
     @SneakyThrows
     @PostMapping("/create/{telegramId}")
@@ -32,18 +32,18 @@ public class PaymentController {
             @RequestBody CreatePaymentRequest request
     ) {
 
-            log.info("Creating payment: userId={}, planType={}",
-                    telegramId, request.getPlanType());
-            CreatePaymentResponse response = paymentService.createPayment(
-                    telegramId,
-                    request.getPlanType(),
-                    request.getRedirectUrl()
-            );
+        log.info("Creating payment: userId={}, planType={}",
+                telegramId, request.getPlanType());
+        CreatePaymentResponse response = paymentService.createPayment(
+                telegramId,
+                request.getPlanType(),
+                request.getRedirectUrl()
+        );
 
-            log.info("Payment created successfully: paymentId={}, url={}",
-                    response.getPaymentId(), response.getPaymentUrl());
+        log.info("Payment created successfully: paymentId={}, url={}",
+                response.getPaymentId(), response.getPaymentUrl());
 
-            return ResponseEntity.ok(response);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -62,27 +62,6 @@ public class PaymentController {
 
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
-        }
-    }
-
-    @PostMapping("/finik")
-    public ResponseEntity<Void> handleWebhook(
-            @RequestBody WebhookData webhook,
-            @RequestHeader Map<String, String> headers
-    ) {
-        try {
-            log.info("Received webhook: transactionId={}, status={}",
-                    webhook.getTransactionId(), webhook.getStatus());
-            log.info("All webhook headers: {}", headers);
-
-            // Обрабатываем webhook
-            webhookService.processWebhook(webhook);
-
-            return ResponseEntity.ok().build();
-
-        } catch (Exception e) {
-            log.error("Error processing webhook", e);
-            return ResponseEntity.internalServerError().build();
         }
     }
 }

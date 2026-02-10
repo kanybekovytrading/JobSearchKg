@@ -16,6 +16,7 @@ import java.util.List;
 public class BotVacancyFeedbackController {
 
     private final VacancyReviewService reviewService;
+
     @Operation(
             summary = "Оставить отзыв на вакансию",
             description = "Оставить рейтинг (1-5 звезд) и комментарий на вакансию. " +

@@ -85,6 +85,9 @@ public class BankWithdrawalService {
                 config.getPrivateKeyPath()
         );
 
+        log.info("=== HTTP REQUEST DETAILS ===");
+        log.info("URL: {} {}", HttpMethod.POST, uri);
+        log.info("Headers:");
         // Отправка запроса
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setContentType(MediaType.APPLICATION_JSON);
@@ -109,10 +112,18 @@ public class BankWithdrawalService {
             log.info("Recipient check success: statusCode={}, name={}",
                     result.getStatusCode(), result.getName());
 
+            log.info("=== HTTP RESPONSE DETAILS ===");
+            log.info("Status Code: {}", response.getStatusCode());
+            log.info("Response Headers: {}", response.getHeaders());
+            log.info("Response Body: {}", objectMapper.writeValueAsString(result));
+            log.info("===========================");
+
+            log.info("Recipient check success: statusCode={}, name={}",
+                    result.getStatusCode(), result.getName());
+
             return result;
 
         } catch (HttpStatusCodeException e) {
-            // ✅ Ловит ВСЕ HTTP ошибки: 4xx (HttpClientErrorException) и 5xx (HttpServerErrorException)
             log.error("Recipient check error: status={}, body={}",
                     e.getStatusCode(), e.getResponseBodyAsString());
 
@@ -145,6 +156,7 @@ public class BankWithdrawalService {
             return errorResponse;
         }
     }
+
     /**
      * ✅ СОЗДАНИЕ ПЛАТЕЖА для конкретного банка
      */
@@ -247,7 +259,7 @@ public class BankWithdrawalService {
 
             return result;
 
-        }catch (HttpStatusCodeException e) {
+        } catch (HttpStatusCodeException e) {
             // ✅ Ловит ВСЕ HTTP ошибки: 4xx и 5xx
             log.error("Payment error: status={}, body={}",
                     e.getStatusCode(), e.getResponseBodyAsString());

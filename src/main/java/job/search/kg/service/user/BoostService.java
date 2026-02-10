@@ -26,6 +26,10 @@ import java.util.UUID;
 @Slf4j
 public class BoostService {
 
+    // Стоимость буста
+    private static final int BOOST_COST_SOMS = 20;      // 20 сом за день
+    private static final int BOOST_COST_POINTS = 400;   // 200 баллов за день
+    private static final int BOOST_DURATION_HOURS = 24; // 24 часа
     private final VacancyRepository vacancyRepository;
     private final ResumeRepository resumeRepository;
     private final VacancyBoostRepository vacancyBoostRepository;
@@ -33,11 +37,6 @@ public class BoostService {
     private final UserRepository userRepository;
     private final BotPointsService pointsService;
     private final PaymentService paymentService;
-
-    // Стоимость буста
-    private static final int BOOST_COST_SOMS = 20;      // 20 сом за день
-    private static final int BOOST_COST_POINTS = 400;   // 200 баллов за день
-    private static final int BOOST_DURATION_HOURS = 24; // 24 часа
 
     /**
      * Поднять вакансию за баллы
@@ -102,7 +101,7 @@ public class BoostService {
         if (!vacancy.getUser().getId().equals(user.getId())) {
             throw new IllegalStateException("You can only boost your own vacancies");
         }
-        CreatePaymentResponse createPaymentResponse = paymentService.createPayment(telegramId, BigDecimal.valueOf(BOOST_COST_SOMS), "вакансии", "string" );
+        CreatePaymentResponse createPaymentResponse = paymentService.createPayment(telegramId, BigDecimal.valueOf(BOOST_COST_SOMS), "вакансии", "string");
         // Создаем буст
         VacancyBoost boost = VacancyBoost.builder()
                 .vacancy(vacancy)
@@ -115,8 +114,8 @@ public class BoostService {
                 .paymentId(createPaymentResponse.getPaymentId())
                 .build();
 
-         vacancyBoostRepository.save(boost);
-         return createPaymentResponse;
+        vacancyBoostRepository.save(boost);
+        return createPaymentResponse;
     }
 
     /**
@@ -178,7 +177,7 @@ public class BoostService {
             throw new IllegalStateException("You can only boost your own resumes");
         }
 
-        CreatePaymentResponse createPaymentResponse = paymentService.createPayment(telegramId, BigDecimal.valueOf(BOOST_COST_SOMS), "резюме", "string" );
+        CreatePaymentResponse createPaymentResponse = paymentService.createPayment(telegramId, BigDecimal.valueOf(BOOST_COST_SOMS), "резюме", "string");
 
 
         deactivateOldResumeBoosts(resumeId);
@@ -194,8 +193,8 @@ public class BoostService {
                 .isActive(false)
                 .build();
 
-         resumeBoostRepository.save(boost);
-         return createPaymentResponse;
+        resumeBoostRepository.save(boost);
+        return createPaymentResponse;
     }
 
     /**

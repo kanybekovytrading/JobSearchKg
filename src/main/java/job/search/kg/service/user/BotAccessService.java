@@ -10,9 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class BotAccessService {
 
+    private static final int POINTS_FOR_SEARCH_ACCESS = 1500;
     private final BotSubscriptionService subscriptionService;
     private final BotPointsService pointsService;
-    private static final int POINTS_FOR_SEARCH_ACCESS = 1500;
 
     public boolean canSearchJobs(Long telegramId) {
         return subscriptionService.hasActiveSubscription(telegramId) ||

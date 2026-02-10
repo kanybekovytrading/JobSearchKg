@@ -110,6 +110,60 @@ public class BotResumeService {
         resumeRepository.delete(resume);
     }
 
+
+    @Transactional
+    public Resume updateResume(Long resumeId, Long telegramId, CreateResumeRequest request) {
+        Resume resume = resumeRepository.findById(resumeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+
+        if (!resume.getUser().getTelegramId().equals(telegramId)) {
+            throw new AccessDeniedException("Access denied");
+        }
+
+        // Обновляем город если изменился
+        if (request.getCityId() != null && !resume.getCity().getId().equals(request.getCityId())) {
+            City city = cityRepository.findById(request.getCityId())
+                    .orElseThrow(() -> new ResourceNotFoundException("City not found"));
+            resume.setCity(city);
+        }
+
+        // Обновляем категорию если изменилась
+        if (request.getCategoryId() != null && !resume.getCategory().getId().equals(request.getCategoryId())) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+            resume.setCategory(category);
+        }
+
+        // Обновляем подкатегорию если изменилась
+        if (request.getSubcategoryId() != null && !resume.getSubcategory().getId().equals(request.getSubcategoryId())) {
+            Subcategory subcategory = subcategoryRepository.findById(request.getSubcategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Subcategory not found"));
+            resume.setSubcategory(subcategory);
+        }
+
+        // Обновляем остальные поля
+        if (request.getName() != null) {
+            resume.setName(request.getName());
+        }
+        if (request.getAge() != null) {
+            resume.setAge(request.getAge());
+        }
+        if (request.getGender() != null) {
+            resume.setGender(request.getGender());
+        }
+        if (request.getExperience() != null) {
+            resume.setExperience(request.getExperience());
+        }
+        if (request.getDescription() != null) {
+            resume.setDescription(request.getDescription());
+        }
+        if (request.getIsActive() != null) {
+            resume.setIsActive(request.getIsActive());
+        }
+
+        return resumeRepository.save(resume);
+    }
+
     private ResumeResponse mapToResponse(Resume resume) {
         ResumeResponse response = new ResumeResponse();
         response.setId(resume.getId());

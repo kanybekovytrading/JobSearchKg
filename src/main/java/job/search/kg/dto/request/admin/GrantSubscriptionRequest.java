@@ -1,4 +1,5 @@
 package job.search.kg.dto.request.admin;
+
 import job.search.kg.entity.Subscription;
 import lombok.Data;
 

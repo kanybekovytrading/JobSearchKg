@@ -38,19 +38,6 @@ public class FinikSignatureUtil {
                 httpMethod, path, headers, queryParams, body
         );
 
-        log.info("=== CANONICAL STRING DEBUG ===");
-        log.info("HTTP Method: {}", httpMethod);
-        log.info("Path: {}", path);
-        log.info("Headers: {}", headers);
-        log.info("Query Params: {}", queryParams);
-        log.info("Body: {}", body);
-        log.info("--- Canonical String ---");
-        log.info("{}", canonicalString);
-        log.info("--- Canonical String (with visible newlines) ---");
-        log.info("{}", canonicalString.replace("\n", "\\n\n"));
-        log.info("Canonical String Length: {}", canonicalString.length());
-        log.info("===============================");
-
         return signWithPrivateKey(canonicalString, privateKeyPath);
     }
 
@@ -185,7 +172,7 @@ public class FinikSignatureUtil {
         int pkcs1Length = pkcs1Bytes.length;
         int totalLength = pkcs1Length + 22;
 
-        byte[] pkcs8Header = new byte[] {
+        byte[] pkcs8Header = new byte[]{
                 0x30, (byte) 0x82, (byte) ((totalLength >> 8) & 0xff), (byte) (totalLength & 0xff),
                 0x2, 0x1, 0x0,
                 0x30, 0xD, 0x6, 0x9, 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0xD, 0x1, 0x1, 0x1, 0x5, 0x0,

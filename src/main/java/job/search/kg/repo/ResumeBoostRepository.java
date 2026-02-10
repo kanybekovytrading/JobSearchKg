@@ -11,10 +11,13 @@ import java.util.Optional;
 @Repository
 public interface ResumeBoostRepository extends JpaRepository<ResumeBoost, Long> {
     boolean existsByResumeIdAndIsActiveTrueAndExpiresAtAfter(Long resumeId, LocalDateTime now);
+
     List<ResumeBoost> findByResumeIdAndIsActiveTrue(Long resumeId);
+
     List<ResumeBoost> findByUserTelegramIdOrderByCreatedAtDesc(Long telegramId);
 
     Optional<ResumeBoost> findByPaymentId(String paymentId);
+
     List<ResumeBoost> findByIsActiveTrueAndExpiresAtBefore(LocalDateTime dateTime);
 
     List<ResumeBoost> findByIsActiveTrueAndExpiresAtBetween(LocalDateTime start, LocalDateTime end);

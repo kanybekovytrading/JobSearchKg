@@ -45,13 +45,13 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<CustomResponse> getAllActiveCategories(Long telegramId, Integer sphereId) {
-        User user =  userRepository.findByTelegramId(telegramId).orElseThrow(
-                ()-> new ResourceNotFoundException("User not found")
+        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
         );
         List<Category> categories = categoryRepository.findBySphereIdAndIsActive(sphereId, true);
 
         return categories.stream().map(category -> {
-            return  CustomResponse.builder()
+            return CustomResponse.builder()
                     .id(category.getId())
                     .name(getNameByLanguage(category, user.getLanguage()))
                     .build();
@@ -61,8 +61,8 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public CustomResponse getCategoryById(Integer id, Long telegramId) {
-        User user =  userRepository.findByTelegramId(telegramId).orElseThrow(
-                ()-> new ResourceNotFoundException("User not found")
+        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
         );
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));

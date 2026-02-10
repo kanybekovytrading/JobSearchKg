@@ -72,7 +72,7 @@ public class AdminCategoryService {
 
     @Transactional(readOnly = true)
     public List<SubcategoryResponse> getSubcategoriesByCategory(Integer categoryId) {
-        List<Subcategory> subcategories  = subcategoryRepository.findByCategoryIdAndIsActive(categoryId, true);
+        List<Subcategory> subcategories = subcategoryRepository.findByCategoryIdAndIsActive(categoryId, true);
         return subcategories.stream()
                 .map(SubcategoryResponse::new)
                 .toList();
@@ -97,7 +97,8 @@ public class AdminCategoryService {
         subcategory.setIsActive(true);
 
         Subcategory saved = subcategoryRepository.save(subcategory);
-        return new SubcategoryResponse(saved);    }
+        return new SubcategoryResponse(saved);
+    }
 
     @Transactional
     public SubcategoryResponse updateSubcategory(Integer id, CreateSubcategoryRequest request) {

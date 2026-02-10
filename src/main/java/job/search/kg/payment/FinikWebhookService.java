@@ -32,7 +32,7 @@ public class FinikWebhookService {
 
     @Transactional
     public void processWebhook(WebhookData webhook) {
-       log.info("webhook {}" , webhook.toString());
+        log.info("webhook {}", webhook.toString());
         // Ищем платеж по transactionId
         Optional<Payment> existingPayment = paymentRepository
                 .findByTransactionId(webhook.getTransactionId());
@@ -62,17 +62,17 @@ public class FinikWebhookService {
 
             log.info("Payment succeeded: paymentId={}", payment.getPaymentId());
 
-            if(payment.getPlanType() != null) {
+            if (payment.getPlanType() != null) {
                 botSubscriptionService.createSubscription(payment.getUser().getTelegramId(), payment.getPlanType(), paymentIdStr);
-            }else {
+            } else {
                 VacancyBoost vacancyBoost = vacancyBoostRepository.findByPaymentId(payment.getPaymentId()).orElse(null);
-                if(vacancyBoost != null) {
+                if (vacancyBoost != null) {
                     boostService.deactivateOldVacancyBoosts(vacancyBoost.getId());
                     vacancyBoost.setIsActive(true);
                     vacancyBoostRepository.save(vacancyBoost);
-                }else {
+                } else {
                     ResumeBoost resumeBoost = resumeBoostRepository.findByPaymentId(payment.getPaymentId()).orElse(null);
-                    if(resumeBoost != null){
+                    if (resumeBoost != null) {
                         boostService.deactivateOldResumeBoosts(resumeBoost.getId());
                         resumeBoost.setIsActive(true);
                         resumeBoostRepository.save(resumeBoost);

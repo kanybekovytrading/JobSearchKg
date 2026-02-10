@@ -31,6 +31,7 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
      * Получение всех выводов со статусом PROCESSING для проверки
      */
     List<Withdrawal> findByStatus(Withdrawal.WithdrawalStatus status);
+
     Page<Withdrawal> findByStatus(Withdrawal.WithdrawalStatus status, Pageable pageable);
 
 }

@@ -41,7 +41,7 @@ public class AdminUserService {
     public void deleteUser(Long id) {
         User user = getUserById(id);
         List<Payment> paymentList = user.getPayments();
-        if(paymentList != null){
+        if (paymentList != null) {
             paymentList.forEach(p -> p.setUser(null));
             paymentRepository.saveAll(paymentList);
         }

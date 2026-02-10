@@ -1,4 +1,5 @@
 package job.search.kg.controller.admin;
+
 import job.search.kg.dto.request.admin.GrantSubscriptionRequest;
 import job.search.kg.entity.Subscription;
 import job.search.kg.service.admin.AdminSubscriptionService;

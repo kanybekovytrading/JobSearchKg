@@ -23,12 +23,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BotPointsService {
 
-    private final UserRepository userRepository;
-    private final PointsTransactionRepository transactionRepository;
-    private final TelegramService telegramService;
-    private final BotSubscriptionService botSubscriptionService;
-    private final WithdrawalService withdrawalService;
-
     // Константы обмена
     // 1 балл = 5 тыйын = 0.05 сом
     // 100 баллов = 5 сом
@@ -37,6 +31,26 @@ public class BotPointsService {
     private static final int POINTS_PER_SOM = 20;              // 20 баллов = 1 сом
     private static final int MIN_POINTS_FOR_WITHDRAWAL = 5000; // Минимум 5000 баллов = 250 сом
     private static final int MAX_WITHDRAWAL_SOMS = 1000;       // Максимум 1000 сом
+    private final UserRepository userRepository;
+    private final PointsTransactionRepository transactionRepository;
+    private final TelegramService telegramService;
+    private final BotSubscriptionService botSubscriptionService;
+    private final WithdrawalService withdrawalService;
+
+    private static @NonNull BigDecimal getBigDecimal(Integer pointsAmount) {
+        BigDecimal amountInSoms = BigDecimal.valueOf(pointsAmount)
+                .divide(BigDecimal.valueOf(POINTS_PER_SOM), 2, RoundingMode.DOWN);
+
+        // Проверяем максимум
+        if (amountInSoms.compareTo(BigDecimal.valueOf(MAX_WITHDRAWAL_SOMS)) > 0) {
+            throw new IllegalArgumentException(
+                    String.format("Maximum withdrawal is %d KGS (%d points)",
+                            MAX_WITHDRAWAL_SOMS,
+                            MAX_WITHDRAWAL_SOMS * POINTS_PER_SOM)
+            );
+        }
+        return amountInSoms;
+    }
 
     @Transactional
     public void addPoints(Long telegramId, Integer amount, PointsTransaction.TransactionType type, String description) {
@@ -97,7 +111,6 @@ public class BotPointsService {
         return user.getBalance() >= requiredAmount;
     }
 
-
     @Transactional
     public void purchaseSubscriptionWithPoints(Long telegramId, Subscription.PlanType subscriptionType) {
         if (botSubscriptionService.hasActiveSubscription(telegramId)) {
@@ -130,8 +143,11 @@ public class BotPointsService {
             Integer pointsAmount,
             String serviceId,
             String recipientPhone
-    ) throws Exception {
+    ) {
 
+        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
+        );
         // Валидация баллов
         if (pointsAmount < 200) {
             throw new IllegalArgumentException(
@@ -176,23 +192,9 @@ public class BotPointsService {
                     PointsTransaction.TransactionType.REFUND,
                     "Возврат баллов после неудачного вывода"
             );
-            throw e;
+            String msg = getWithdrawalFailedMessage(user.getLanguage(), amountInSoms);
+            telegramService.sendMessage(user.getTelegramId(), msg);
         }
-    }
-
-    private static @NonNull BigDecimal getBigDecimal(Integer pointsAmount) {
-        BigDecimal amountInSoms = BigDecimal.valueOf(pointsAmount)
-                .divide(BigDecimal.valueOf(POINTS_PER_SOM), 2, RoundingMode.DOWN);
-
-        // Проверяем максимум
-        if (amountInSoms.compareTo(BigDecimal.valueOf(MAX_WITHDRAWAL_SOMS)) > 0) {
-            throw new IllegalArgumentException(
-                    String.format("Maximum withdrawal is %d KGS (%d points)",
-                            MAX_WITHDRAWAL_SOMS,
-                            MAX_WITHDRAWAL_SOMS * POINTS_PER_SOM)
-            );
-        }
-        return amountInSoms;
     }
 
     /**
@@ -223,7 +225,37 @@ public class BotPointsService {
             case THREE_DAYS -> 5000;      // 50 рефералов
             case ONE_WEEK -> 10000;       // 100 рефералов
             case ONE_MONTH -> 30000;      // 300 рефералов
-            case THREE_MONTHS -> throw new IllegalArgumentException("THREE_MONTHS subscription not supported for points purchase");
+            case THREE_MONTHS ->
+                    throw new IllegalArgumentException("THREE_MONTHS subscription not supported for points purchase");
+        };
+    }
+
+    private String getWithdrawalFailedMessage(
+            User.Language language,
+            BigDecimal amount
+    ) {
+        return switch (language) {
+            case RU -> String.format(
+                    "❌ <b>Вывод средств не выполнен</b>\n\n" +
+                            "💰 Сумма: <b>%.2f сом</b>\n\n" +
+                            "К сожалению, не удалось завершить операцию.\n\n" +
+                            "Попробуйте позже или свяжитесь с поддержкой.",
+                    amount
+            );
+            case KY -> String.format(
+                    "❌ <b>Акча алуу аткарылган жок</b>\n\n" +
+                            "💰 Сумма: <b>%.2f сом</b>\n\n" +
+                            "Тилекке каршы, операцияны аяктоо мүмкүн болгон жок.\n\n" +
+                            "Кийинчерээк кайра аракет кылыңыз же колдоо кызматына кайрылыңыз.",
+                    amount
+            );
+            case EN -> String.format(
+                    "❌ <b>Withdrawal failed</b>\n\n" +
+                            "💰 Amount: <b>%.2f som</b>\n\n" +
+                            "Unfortunately, the operation could not be completed.\n\n" +
+                            "Please try again later or contact support.",
+                    amount
+            );
         };
     }
 }

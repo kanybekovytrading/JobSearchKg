@@ -1,5 +1,9 @@
 package job.search.kg.dto.response;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import job.search.kg.entity.Vacancy;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,4 +28,10 @@ public class VacancyResponse {
     private Boolean isActive;
     private String telegramUsername;
     private LocalDateTime createdAt;
+    private String address;
+    private String schedule;
+    private Integer experienceInYear;
+    private Integer minAge;
+    private Integer maxAge;
+    private Vacancy.GenderPreference preferredGender;
 }

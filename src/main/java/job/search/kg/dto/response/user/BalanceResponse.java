@@ -1,4 +1,5 @@
 package job.search.kg.dto.response.user;
+
 import job.search.kg.entity.PointsTransaction;
 import lombok.Data;
 

@@ -14,6 +14,7 @@ public class FinikWConfig {
     private String accountId;
     private String baseUrl;
     private String privateKeyPath;
+    private String publicKeyPath;
     private String webhookURL;
     private String userId;
 
