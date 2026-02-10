@@ -29,7 +29,6 @@ public class GeminiService {
     private final ResumeRepository repository;
     private final VacancyRepository vacancyRepository;
     private final ObjectMapper objectMapper;
-    private final WebClient.Builder webClientBuilder;
     @Value("${gemini.api-key}")
     private String apiKey;
     @Value("${gemini.model}")
