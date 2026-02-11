@@ -247,7 +247,7 @@ public class BotSearchService {
                 .collect(Collectors.toList());
     }
 
-    private ResumeResponse mapResumeToResponse(Resume resume) {
+    public ResumeResponse mapResumeToResponse(Resume resume) {
         ResumeResponse response = new ResumeResponse();
         response.setId(resume.getId());
         response.setName(resume.getName());
@@ -264,7 +264,7 @@ public class BotSearchService {
         return response;
     }
 
-    private ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
+    public ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
 
         ResumeResponse response = new ResumeResponse();
 
@@ -288,13 +288,13 @@ public class BotSearchService {
         return response;
     }
 
-    private VacancyResponse mapVacancyToResponse(Vacancy vacancy) {
+    public VacancyResponse mapVacancyToResponse(Vacancy vacancy) {
         VacancyResponse response = new VacancyResponse();
         response.setPhone(vacancy.getPhone());
         return getVacancyResponse(vacancy, response);
     }
 
-    private VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
+    public VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
         VacancyResponse response = new VacancyResponse();
 
         if (vacancy.getUser().getPhone() != null && !vacancy.getUser().getPhone().isEmpty()) {

@@ -5,8 +5,9 @@ import job.search.kg.dto.request.user.CreateVacancyRequest;
 import job.search.kg.dto.response.VacancyResponse;
 import job.search.kg.dto.response.user.VacancyStatsResponse;
 import job.search.kg.entity.Vacancy;
-import job.search.kg.mapper.VacancyMapper;
 import job.search.kg.service.admin.AdminVacancyService;
+import job.search.kg.service.user.BotAccessService;
+import job.search.kg.service.user.BotSearchService;
 import job.search.kg.service.user.BotVacancyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,7 +23,8 @@ public class BotVacancyController {
 
     private final BotVacancyService botVacancyService;
     private final AdminVacancyService adminVacancyService;
-    private final VacancyMapper vacancyMapper;
+    private final BotSearchService botSearchService;
+    private final BotAccessService botAccessService;
 
     @PostMapping
     public ResponseEntity<Vacancy> createVacancy(
@@ -61,11 +63,16 @@ public class BotVacancyController {
         return ResponseEntity.ok(vacancy);
     }
 
-    @GetMapping("/{vacancyId}")
-    public ResponseEntity<job.search.kg.dto.response.admin.VacancyResponse> getVacancyById(
-            @PathVariable Long vacancyId) {
+    @GetMapping("/{vacancyId}/{telegramId}")
+    public ResponseEntity<job.search.kg.dto.response.VacancyResponse> getVacancyById(
+            @PathVariable Long vacancyId,  @PathVariable Long telegramId) {
         Vacancy vacancy = adminVacancyService.getVacancyById(vacancyId);
-        job.search.kg.dto.response.admin.VacancyResponse response = vacancyMapper.toResponse(vacancy, vacancy.getUser().getLanguage());
+        VacancyResponse response;
+        if (!botAccessService.canSearchEmployees(telegramId)) {
+          response =  botSearchService.mapVacancyToResponseWithoutSubs(vacancy);
+        }else {
+           response =  botSearchService.mapVacancyToResponse(vacancy);
+        }
         return ResponseEntity.ok(response);
     }
 

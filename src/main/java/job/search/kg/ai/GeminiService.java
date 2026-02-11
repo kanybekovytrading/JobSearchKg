@@ -15,11 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
-
 
 @Slf4j
 @Service
@@ -29,12 +29,15 @@ public class GeminiService {
     private final ResumeRepository repository;
     private final VacancyRepository vacancyRepository;
     private final ObjectMapper objectMapper;
-    @Value("${gemini.api-key}")
+
+    @Value("${claude.api-key}")
     private String apiKey;
-    @Value("${gemini.model}")
+
+    @Value("${claude.model}")
     private String model;
-    @Value("${gemini.base-url}")
-    private String baseUrl;
+
+    private static final String CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
+    private static final String ANTHROPIC_VERSION = "2023-06-01";
 
     public ResumeAnalysis analyzeResume(Long resumeId, Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
@@ -48,10 +51,8 @@ public class GeminiService {
         String subcategoryName = getSubcategoryName(resume.getSubcategory(), userLanguage);
 
         String prompt = buildAnalyzeResumePrompt(resume, categoryName, subcategoryName, userLanguage);
-        Map<String, Object> schema = buildAnalyzeResumeSchema(userLanguage);
 
-        // Вызываем Gemini и блокируем
-        return callGemini(prompt, schema, ResumeAnalysis.class).block();
+        return callClaude(prompt, ResumeAnalysis.class).block();
     }
 
     public SalaryPrediction predictSalary(Long vacancyId, Long telegramId) {
@@ -68,9 +69,31 @@ public class GeminiService {
         String subcategoryName = getSubcategoryName(vacancy.getSubcategory(), userLanguage);
 
         String prompt = buildPredictSalaryPrompt(vacancy, categoryName, subcategoryName, userLanguage);
-        Map<String, Object> schema = buildPredictSalarySchema(userLanguage);
 
-        return callGemini(prompt, schema, SalaryPrediction.class).block();
+        return callClaude(prompt, SalaryPrediction.class).block();
+    }
+
+    public Mono<CoverLetter> generateCoverLetter(Long resumeId, Long vacancyId, Long telegramId) {
+        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
+                () -> new ResourceNotFoundException("User not found")
+        );
+
+        Resume resume = repository.findById(resumeId).orElseThrow(
+                () -> new ResourceNotFoundException("Resume not found")
+        );
+
+        Vacancy vacancy = vacancyRepository.findById(vacancyId).orElseThrow(
+                () -> new ResourceNotFoundException("Vacancy not found")
+        );
+
+        User.Language userLanguage = user.getLanguage();
+
+        String categoryName = getCategoryName(resume.getCategory(), userLanguage);
+        String subcategoryName = getSubcategoryName(resume.getSubcategory(), userLanguage);
+
+        String prompt = buildPrompt(resume, vacancy, categoryName, subcategoryName, userLanguage);
+
+        return callClaude(prompt, CoverLetter.class);
     }
 
 // ==================== ANALYZE RESUME PROMPTS ====================
@@ -97,7 +120,14 @@ public class GeminiService {
 
         return String.format(
                 "Проведи профессиональный анализ этого резюме для рынка Кыргызстана. " +
-                        "Дай оценку от 0 до 100 и краткие советы по улучшению. ДАННЫЕ: %s",
+                        "Дай оценку от 0 до 100 и краткие советы по улучшению. ДАННЫЕ: %s\n\n" +
+                        "Ответь ТОЛЬКО в формате JSON без дополнительного текста:\n" +
+                        "{\n" +
+                        "  \"score\": число от 0 до 100,\n" +
+                        "  \"summary\": \"общий вывод на русском\",\n" +
+                        "  \"strengths\": [\"сильная сторона 1\", \"сильная сторона 2\"],\n" +
+                        "  \"weaknesses\": [\"слабая сторона 1\", \"слабая сторона 2\"]\n" +
+                        "}",
                 resumeData
         );
     }
@@ -115,7 +145,14 @@ public class GeminiService {
 
         return String.format(
                 "Conduct a professional analysis of this resume for the Kyrgyzstan job market. " +
-                        "Give a score from 0 to 100 and brief improvement tips. DATA: %s",
+                        "Give a score from 0 to 100 and brief improvement tips. DATA: %s\n\n" +
+                        "Respond ONLY in JSON format without additional text:\n" +
+                        "{\n" +
+                        "  \"score\": number from 0 to 100,\n" +
+                        "  \"summary\": \"overall conclusion in English\",\n" +
+                        "  \"strengths\": [\"strength 1\", \"strength 2\"],\n" +
+                        "  \"weaknesses\": [\"weakness 1\", \"weakness 2\"]\n" +
+                        "}",
                 resumeData
         );
     }
@@ -133,71 +170,16 @@ public class GeminiService {
 
         return String.format(
                 "Кыргызстандын эмгек рыногу үчүн бул резюмени кесиптик талдаңыз. " +
-                        "0дөн 100гө чейин баа бериңиз жана жакшыртуу боюнча кыскача кеңештерди бериңиз. МААЛЫМАТТАР: %s",
+                        "0дөн 100гө чейин баа бериңиз жана жакшыртуу боюнча кыскача кеңештерди бериңиз. МААЛЫМАТТАР: %s\n\n" +
+                        "Жооп БОЙДОН JSON форматында кошумча текстсиз:\n" +
+                        "{\n" +
+                        "  \"score\": 0дөн 100гө чейин сан,\n" +
+                        "  \"summary\": \"жалпы корутунду кыргызча\",\n" +
+                        "  \"strengths\": [\"күчтүү жагы 1\", \"күчтүү жагы 2\"],\n" +
+                        "  \"weaknesses\": [\"алсыз жагы 1\", \"алсыз жагы 2\"]\n" +
+                        "}",
                 resumeData
         );
-    }
-
-    private Map<String, Object> buildAnalyzeResumeSchema(User.Language language) {
-        return switch (language) {
-            case EN -> Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                            "score", Map.of("type", "number"),
-                            "summary", Map.of(
-                                    "type", "string",
-                                    "description", "Overall conclusion in English"
-                            ),
-                            "strengths", Map.of(
-                                    "type", "array",
-                                    "items", Map.of("type", "string")
-                            ),
-                            "weaknesses", Map.of(
-                                    "type", "array",
-                                    "items", Map.of("type", "string")
-                            )
-                    ),
-                    "required", List.of("score", "summary")
-            );
-            case KY -> Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                            "score", Map.of("type", "number"),
-                            "summary", Map.of(
-                                    "type", "string",
-                                    "description", "Жалпы корутунду кыргызча"
-                            ),
-                            "strengths", Map.of(
-                                    "type", "array",
-                                    "items", Map.of("type", "string")
-                            ),
-                            "weaknesses", Map.of(
-                                    "type", "array",
-                                    "items", Map.of("type", "string")
-                            )
-                    ),
-                    "required", List.of("score", "summary")
-            );
-            default -> Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                            "score", Map.of("type", "number"),
-                            "summary", Map.of(
-                                    "type", "string",
-                                    "description", "Общий вывод на русском"
-                            ),
-                            "strengths", Map.of(
-                                    "type", "array",
-                                    "items", Map.of("type", "string")
-                            ),
-                            "weaknesses", Map.of(
-                                    "type", "array",
-                                    "items", Map.of("type", "string")
-                            )
-                    ),
-                    "required", List.of("score", "summary")
-            );
-        };
     }
 
 // ==================== PREDICT SALARY PROMPTS ====================
@@ -224,7 +206,12 @@ public class GeminiService {
 
         return String.format(
                 "На основе опыта и сферы деятельности, предскажи реальную зарплату в сомах (KGS) " +
-                        "для этой позиции в Кыргызстане. ДАННЫЕ: %s",
+                        "для этой позиции в Кыргызстане. ДАННЫЕ: %s\n\n" +
+                        "Ответь ТОЛЬКО в формате JSON без дополнительного текста:\n" +
+                        "{\n" +
+                        "  \"averageSalary\": число в сомах,\n" +
+                        "  \"explanation\": \"почему такая сумма (на русском)\"\n" +
+                        "}",
                 vacancyData
         );
     }
@@ -242,7 +229,12 @@ public class GeminiService {
 
         return String.format(
                 "Based on experience and field of activity, predict the real salary in soms (KGS) " +
-                        "for this position in Kyrgyzstan. DATA: %s",
+                        "for this position in Kyrgyzstan. DATA: %s\n\n" +
+                        "Respond ONLY in JSON format without additional text:\n" +
+                        "{\n" +
+                        "  \"averageSalary\": number in soms,\n" +
+                        "  \"explanation\": \"why this amount (in English)\"\n" +
+                        "}",
                 vacancyData
         );
     }
@@ -260,120 +252,17 @@ public class GeminiService {
 
         return String.format(
                 "Тажрыйбага жана иш чөйрөсүнө жараша, Кыргызстандагы бул кызмат үчүн " +
-                        "чыныгы айлык акыны сомдо (KGS) болжолдоңуз. МААЛЫМАТТАР: %s",
+                        "чыныгы айлык акыны сомдо (KGS) болжолдоңуз. МААЛЫМАТТАР: %s\n\n" +
+                        "Жооп БОЙДОН JSON форматында кошумча текстсиз:\n" +
+                        "{\n" +
+                        "  \"averageSalary\": сомдогу сан,\n" +
+                        "  \"explanation\": \"эмне үчүн ушул сумма (кыргызча)\"\n" +
+                        "}",
                 vacancyData
         );
     }
 
-    private Map<String, Object> buildPredictSalarySchema(User.Language language) {
-        return switch (language) {
-            case EN -> Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                            "averageSalary", Map.of("type", "number"),
-                            "explanation", Map.of(
-                                    "type", "string",
-                                    "description", "Why this amount (in English)"
-                            )
-                    ),
-                    "required", List.of("averageSalary", "explanation")
-            );
-            case KY -> Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                            "averageSalary", Map.of("type", "number"),
-                            "explanation", Map.of(
-                                    "type", "string",
-                                    "description", "Эмне үчүн ушул сумма (кыргызча)"
-                            )
-                    ),
-                    "required", List.of("averageSalary", "explanation")
-            );
-            default -> Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                            "averageSalary", Map.of("type", "number"),
-                            "explanation", Map.of(
-                                    "type", "string",
-                                    "description", "Почему такая сумма (на русском)"
-                            )
-                    ),
-                    "required", List.of("averageSalary", "explanation")
-            );
-        };
-    }
-
-    public Mono<CoverLetter> generateCoverLetter(Long resumeId, Long vacancyId, Long telegramId) {
-        User user = userRepository.findByTelegramId(telegramId).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
-        );
-
-        Resume resume = repository.findById(resumeId).orElseThrow(
-                () -> new ResourceNotFoundException("Resume not found")
-        );
-
-        Vacancy vacancy = vacancyRepository.findById(vacancyId).orElseThrow(
-                () -> new ResourceNotFoundException("Vacancy not found")
-        );
-
-        User.Language userLanguage = user.getLanguage();
-
-        // Получаем название категории в зависимости от языка
-        String categoryName = getCategoryName(resume.getCategory(), userLanguage);
-        String subcategoryName = getSubcategoryName(resume.getSubcategory(), userLanguage);
-
-        // Формируем промпт на языке пользователя
-        String prompt = buildPrompt(resume, vacancy, categoryName, subcategoryName, userLanguage);
-
-        Map<String, Object> schema = Map.of(
-                "type", "object",
-                "properties", Map.of(
-                        "letter", Map.of(
-                                "type", "string",
-                                "description", getSchemaDescription(userLanguage)
-                        )
-                ),
-                "required", List.of("letter")
-        );
-
-        return callGemini(prompt, schema, CoverLetter.class);
-    }
-
-    private String getCategoryName(Category category, User.Language language) {
-        if (category == null) return getNotSpecifiedText(language);
-
-        return switch (language) {
-            case EN -> category.getNameEn() != null ? category.getNameEn() : category.getNameRu();
-            case KY -> category.getNameKy() != null ? category.getNameKy() : category.getNameRu();
-            default -> category.getNameRu(); // "ru" или любой другой
-        };
-    }
-
-    private String getSubcategoryName(Subcategory subcategory, User.Language language) {
-        if (subcategory == null) return getNotSpecifiedText(language);
-
-        return switch (language) {
-            case EN -> subcategory.getNameEn() != null ? subcategory.getNameEn() : subcategory.getNameRu();
-            case KY -> subcategory.getNameKy() != null ? subcategory.getNameKy() : subcategory.getNameRu();
-            default -> subcategory.getNameRu();
-        };
-    }
-
-    private String getNotSpecifiedText(User.Language language) {
-        return switch (language) {
-            case EN -> "not specified";
-            case KY -> "көрсөтүлгөн эмес";
-            default -> "не указано";
-        };
-    }
-
-    private String getSchemaDescription(User.Language language) {
-        return switch (language) {
-            case EN -> "Cover letter text";
-            case KY -> "Кат тексти";
-            default -> "Текст письма";
-        };
-    }
+// ==================== COVER LETTER PROMPTS ====================
 
     private String buildPrompt(Resume resume, Vacancy vacancy, String categoryName,
                                String subcategoryName, User.Language language) {
@@ -408,7 +297,11 @@ public class GeminiService {
                 "Напиши короткий, убедительный отклик (сопроводительное письмо) на вакансию от имени кандидата. " +
                         "Стиль: профессиональный, вежливый. Язык: русский. " +
                         "ВАКАНСИЯ: %s " +
-                        "КАНДИДАТ: %s",
+                        "КАНДИДАТ: %s\n\n" +
+                        "Ответь ТОЛЬКО в формате JSON без дополнительного текста:\n" +
+                        "{\n" +
+                        "  \"letter\": \"текст сопроводительного письма\"\n" +
+                        "}",
                 vacancyData, resumeData
         );
     }
@@ -437,7 +330,11 @@ public class GeminiService {
                 "Write a short, persuasive cover letter for a job application on behalf of the candidate. " +
                         "Style: professional, polite. Language: English. " +
                         "VACANCY: %s " +
-                        "CANDIDATE: %s",
+                        "CANDIDATE: %s\n\n" +
+                        "Respond ONLY in JSON format without additional text:\n" +
+                        "{\n" +
+                        "  \"letter\": \"cover letter text\"\n" +
+                        "}",
                 vacancyData, resumeData
         );
     }
@@ -466,55 +363,87 @@ public class GeminiService {
                 "Талапкердин атынан жумушка өтүнүч катын жазыңыз. " +
                         "Стили: кесиптик, сылык. Тил: кыргызча. " +
                         "ВАКАНСИЯ: %s " +
-                        "ТАЛАПКЕР: %s",
+                        "ТАЛАПКЕР: %s\n\n" +
+                        "Жооп БОЙДОН JSON форматында кошумча текстсиз:\n" +
+                        "{\n" +
+                        "  \"letter\": \"кат тексти\"\n" +
+                        "}",
                 vacancyData, resumeData
         );
     }
 
-    private <T> Mono<T> callGemini(String prompt, Map<String, Object> schema, Class<T> responseType) {
-        // Для v1 API убираем responseSchema
+// ==================== HELPER METHODS ====================
+
+    private String getCategoryName(Category category, User.Language language) {
+        if (category == null) return getNotSpecifiedText(language);
+
+        return switch (language) {
+            case EN -> category.getNameEn() != null ? category.getNameEn() : category.getNameRu();
+            case KY -> category.getNameKy() != null ? category.getNameKy() : category.getNameRu();
+            default -> category.getNameRu();
+        };
+    }
+
+    private String getSubcategoryName(Subcategory subcategory, User.Language language) {
+        if (subcategory == null) return getNotSpecifiedText(language);
+
+        return switch (language) {
+            case EN -> subcategory.getNameEn() != null ? subcategory.getNameEn() : subcategory.getNameRu();
+            case KY -> subcategory.getNameKy() != null ? subcategory.getNameKy() : subcategory.getNameRu();
+            default -> subcategory.getNameRu();
+        };
+    }
+
+    private String getNotSpecifiedText(User.Language language) {
+        return switch (language) {
+            case EN -> "not specified";
+            case KY -> "көрсөтүлгөн эмес";
+            default -> "не указано";
+        };
+    }
+
+// ==================== CLAUDE API CALL ====================
+
+    private <T> Mono<T> callClaude(String prompt, Class<T> responseType) {
         Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                        Map.of("parts", List.of(
-                                Map.of("text", prompt + "\n\nОтветь ТОЛЬКО в формате JSON без дополнительного текста.")
-                        ))
+                "model", model,
+                "max_tokens", 2000,
+                "messages", List.of(
+                        Map.of(
+                                "role", "user",
+                                "content", prompt
+                        )
                 )
-                // Убрали generationConfig с responseSchema
         );
 
-        String url = String.format("%s/models/%s:generateContent", baseUrl, model);
-
-        log.info("=== Gemini API Request ===");
-        log.info("URL: {}", url);
+        log.info("=== Claude API Request ===");
         log.info("Model: {}", model);
         log.info("Prompt length: {} chars", prompt.length());
 
         return WebClient.builder()
                 .build()
                 .post()
-                .uri(url)
+                .uri(CLAUDE_API_URL)
                 .header("Content-Type", "application/json")
-                .header("X-goog-api-key", apiKey)
+                .header("x-api-key", apiKey)
+                .header("anthropic-version", ANTHROPIC_VERSION)
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
-                .doOnNext(response -> log.info("✅ Gemini response received"))
+                .doOnNext(response -> log.info("✅ Claude response received"))
                 .map(response -> {
                     try {
                         if (response.has("error")) {
-                            log.error("Gemini API error: {}", response.get("error"));
+                            log.error("Claude API error: {}", response.get("error"));
                             return null;
                         }
 
                         String text = response
-                                .path("candidates").get(0)
-                                .path("content")
-                                .path("parts").get(0)
+                                .path("content").get(0)
                                 .path("text").asText();
 
                         log.info("Raw response text: {}", text);
 
-                        // Очищаем от markdown
                         String cleanJson = text
                                 .replace("```json", "")
                                 .replace("```", "")
@@ -526,9 +455,17 @@ public class GeminiService {
                         return null;
                     }
                 })
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    // ВОТ КЛЮЧЕВОЕ ИЗМЕНЕНИЕ - логируем тело ошибки
+                    log.error("❌ Claude API call failed: {} {}",
+                            e.getStatusCode(),
+                            e.getStatusText());
+                    log.error("❌ Response body: {}", e.getResponseBodyAsString());
+                    return Mono.error(e);
+                })
                 .onErrorResume(e -> {
-                    log.error("❌ Gemini API call failed: {}", e.getMessage());
-                    return Mono.empty();
+                    log.error("❌ Unexpected error: {}", e.getMessage(), e);
+                    return Mono.error(e);
                 });
     }
 }
