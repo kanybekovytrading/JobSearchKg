@@ -17,35 +17,35 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class AIController {
 
-    private final GeminiService geminiService;
-
-    @PostMapping("/analyze-resume/{resumeId}/{telegramId}")
-    public ResponseEntity<ResumeAnalysis> analyzeResume(
-            @PathVariable Long resumeId,
-            @PathVariable Long telegramId
-    ) {
-        try {
-            ResumeAnalysis analysis = geminiService.analyzeResume(resumeId, telegramId);
-            return ResponseEntity.ok(analysis);
-        } catch (ResourceNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            log.error("Error analyzing resume", e);
-            return ResponseEntity.status(500).build();
-        }
-    }
-
-    @PostMapping("/predict-salary/{vacancyId}/{telegramId}")
-    public ResponseEntity<SalaryPrediction> predictSalary(@PathVariable Long vacancyId, @PathVariable Long telegramId) {
-        return ResponseEntity.ok(geminiService.predictSalary(vacancyId, telegramId));
-    }
-
-    @PostMapping("/generate-cover-letter/{resumeId}/{vacancyId}/{telegramId}")
-    public Mono<CoverLetter> generateCoverLetter(
-            @PathVariable Long resumeId, @PathVariable Long vacancyId, @PathVariable Long telegramId
-    ) {
-        return geminiService.generateCoverLetter(
-                resumeId, vacancyId, telegramId
-        );
-    }
+//    private final GeminiService geminiService;
+//
+//    @PostMapping("/analyze-resume/{resumeId}/{telegramId}")
+//    public ResponseEntity<ResumeAnalysis> analyzeResume(
+//            @PathVariable Long resumeId,
+//            @PathVariable Long telegramId
+//    ) {
+//        try {
+//            ResumeAnalysis analysis = geminiService.analyzeResume(resumeId, telegramId);
+//            return ResponseEntity.ok(analysis);
+//        } catch (ResourceNotFoundException e) {
+//            return ResponseEntity.notFound().build();
+//        } catch (Exception e) {
+//            log.error("Error analyzing resume", e);
+//            return ResponseEntity.status(500).build();
+//        }
+//    }
+//
+//    @PostMapping("/predict-salary/{vacancyId}/{telegramId}")
+//    public ResponseEntity<SalaryPrediction> predictSalary(@PathVariable Long vacancyId, @PathVariable Long telegramId) {
+//        return ResponseEntity.ok(geminiService.predictSalary(vacancyId, telegramId));
+//    }
+//
+//    @PostMapping("/generate-cover-letter/{resumeId}/{vacancyId}/{telegramId}")
+//    public Mono<CoverLetter> generateCoverLetter(
+//            @PathVariable Long resumeId, @PathVariable Long vacancyId, @PathVariable Long telegramId
+//    ) {
+//        return geminiService.generateCoverLetter(
+//                resumeId, vacancyId, telegramId
+//        );
+//    }
 }
