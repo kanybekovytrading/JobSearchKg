@@ -1,6 +1,11 @@
 spring:
   application:
     name: work-kg-backend
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 110MB
   datasource:
     url: jdbc:postgresql://postgres-duve.railway.internal:5432/railway
     username: postgres
@@ -111,10 +116,9 @@ telegram:
   bot:
     token: 8288728857:AAFvrR2fDp9y1WQg-lv1CvCAO3A41N6rlBk
 
-gemini:
-  api-key: AIzaSyDF9JoBwpk-dCodI9v3mvech1Qy6igS4vI
-  model: gemini-1.5-flash
-  base-url: https://generativelanguage.googleapis.com/v1beta/models
+claude:
+  api-key: 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
+  model: claude-haiku-4-5-20251001
 
 finik-withdraw:
   api-key: iFKEAzkc8f5wPrSVmnL6U60hYrhuqxBK8tZDS8jv
@@ -129,6 +133,14 @@ finik:
   private-key-path: classpath:workkg.pem
   base-url: https://api.acquiring.averspay.kg
   webhook-url: ${APP_BASE_URL}/api/bot/payments/finik
+
+minio:
+  url: https://fra1.digitaloceanspaces.com
+  access-key: DO004G42KTU6VL83JA4Z
+  secret-key: BajPpPGRgaLB9o1qD7+vZUg0pcBID/GGaiTqqTNCMB4
+  bucket:
+    resumes: resume-media
+    vacancies: vacancy-media
 
 logging:
   level:

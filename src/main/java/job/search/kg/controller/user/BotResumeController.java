@@ -1,17 +1,22 @@
 package job.search.kg.controller.user;
 
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import job.search.kg.dto.request.user.CreateResumeRequest;
-import job.search.kg.dto.response.ResumeResponseDto;
+import job.search.kg.dto.response.MediaResponse;
 import job.search.kg.dto.response.user.ResumeResponse;
 import job.search.kg.dto.response.user.ResumeStatsResponse;
 import job.search.kg.entity.Resume;
 import job.search.kg.service.admin.AdminResumeService;
+import job.search.kg.service.user.BotAccessService;
 import job.search.kg.service.user.BotResumeService;
+import job.search.kg.service.user.BotSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -22,6 +27,10 @@ public class BotResumeController {
 
     private final BotResumeService botResumeService;
     private final AdminResumeService adminResumeService;
+    private final BotSearchService botSearchService;
+    private final BotAccessService botAccessService;
+    private final BotResumeService resumeService;
+
 
     @PostMapping
     public ResponseEntity<Resume> createResume(
@@ -60,14 +69,19 @@ public class BotResumeController {
         return ResponseEntity.ok(stats);
     }
 
-    @GetMapping("/{resumeId}")
-    public ResponseEntity<ResumeResponseDto> getResumeById(
-            @PathVariable Long resumeId) {
-
+    @GetMapping("/{resumeId}/{telegramId}")
+    public ResponseEntity<ResumeResponse> getResumeById(
+            @PathVariable Long resumeId, @PathVariable Long telegramId) {
         Resume resume = adminResumeService.getResumeById(resumeId);
-
-        ResumeResponseDto responseDto = ResumeResponseDto.fromEntity(resume, resume.getUser().getLanguage());
-        return ResponseEntity.ok(responseDto);
+        List<MediaResponse> mediaResponses = botResumeService.getResumeMedia(resumeId);
+        ResumeResponse response;
+        if (!botAccessService.canSearchEmployees(telegramId)) {
+            response =  botSearchService.mapResumeToResponseWithoutSubs(resume);
+        }else {
+            response =  botSearchService.mapResumeToResponse(resume);
+        }
+        response.setMedia(mediaResponses);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{resumeId}/update/{telegramId}")
@@ -76,5 +90,91 @@ public class BotResumeController {
             @PathVariable Long telegramId,
             @Valid @RequestBody CreateResumeRequest request) {
         return ResponseEntity.ok(botResumeService.updateResume(resumeId, telegramId, request));
+    }
+
+
+    /**
+     * Получить все медиа файлы резюме
+     * GET /api/bot/resumes/{resumeId}/media
+     */
+    @GetMapping("/{resumeId}/media")
+    public ResponseEntity<List<MediaResponse>> getResumeMedia(@PathVariable Long resumeId) {
+        List<MediaResponse> media = resumeService.getResumeMedia(resumeId);
+        return ResponseEntity.ok(media);
+    }
+
+    @PostMapping(value = "/{resumeId}/media/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MediaResponse> uploadPhoto(
+            @PathVariable Long resumeId,
+            @RequestParam("telegramId") Long telegramId,
+            @Parameter(
+                    description = "Фото файл (jpg, png, max 10MB)",
+                    required = true
+            )
+            @RequestPart("file") MultipartFile file
+    ) {
+        try {
+            MediaResponse response = resumeService.addResumePhoto(resumeId, telegramId, file);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Загрузить видео к резюме
+     * POST /api/bot/resumes/{resumeId}/media/video
+     */
+    @PostMapping(value = "/{resumeId}/media/video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MediaResponse> uploadVideo(
+            @PathVariable Long resumeId,
+            @RequestParam("telegramId") Long telegramId,
+            @Parameter(
+                    description = "Видео файл (mp4, mov, max 100MB)",
+                    required = true
+            )
+            @RequestPart("file") MultipartFile file
+    ) {
+        try {
+            MediaResponse response = resumeService.addResumeVideo(resumeId, telegramId, file);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Удалить медиа файл
+     * DELETE /api/bot/resumes/media/{mediaId}
+     */
+    @DeleteMapping("/media/{mediaId}")
+    public ResponseEntity<Void> deleteMedia(
+            @PathVariable Long mediaId,
+            @RequestParam("telegramId") Long telegramId
+    ) {
+        try {
+            resumeService.deleteResumeMedia(mediaId, telegramId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Изменить порядок отображения медиа
+     * PATCH /api/bot/resumes/media/{mediaId}/order
+     */
+    @PatchMapping("/media/{mediaId}/order")
+    public ResponseEntity<Void> updateMediaOrder(
+            @PathVariable Long mediaId,
+            @RequestParam("telegramId") Long telegramId,
+            @RequestParam("newOrder") Integer newOrder
+    ) {
+        resumeService.updateMediaOrder(mediaId, telegramId, newOrder);
+        return ResponseEntity.ok().build();
     }
 }

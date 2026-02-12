@@ -1,15 +1,13 @@
 package job.search.kg.service.user;
 
 import job.search.kg.dto.request.user.SearchRequest;
+import job.search.kg.dto.response.MediaResponse;
 import job.search.kg.dto.response.VacancyResponse;
 import job.search.kg.dto.response.user.ResumeResponse;
 import job.search.kg.dto.response.user.ResumeStatisticsResponse;
 import job.search.kg.dto.response.user.SearchResultResponse;
 import job.search.kg.dto.response.user.VacancyStatisticsResponse;
-import job.search.kg.entity.Resume;
-import job.search.kg.entity.ResumeStatistics;
-import job.search.kg.entity.Vacancy;
-import job.search.kg.entity.VacancyStatistics;
+import job.search.kg.entity.*;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +34,8 @@ public class BotSearchService {
     private final ResumeBoostRepository resumeBoostRepository;
     private final VacancyStatisticsRepository vacancyStatisticsRepository;
     private final ResumeStatisticsRepository resumeStatisticsRepository;
+    private final ResumeMediaRepository resumeMediaRepository;
+    private final VacancyMediaRepository vacancyMediaRepository;
 
     @Transactional(readOnly = true)
     public SearchResultResponse<ResumeResponse> searchResumes(Long telegramId, SearchRequest request) {
@@ -61,13 +61,10 @@ public class BotSearchService {
         };
 
         List<Resume> resumes = resumeRepository.findAll(spec);
-
-        // Сортировка: сначала с активным Boost, потом по дате
         resumes = sortResumesByBoost(resumes);
 
         List<ResumeResponse> responses;
 
-        // Проверка доступа
         if (!accessService.canSearchEmployees(telegramId)) {
             responses = resumes.stream()
                     .map(this::mapResumeToResponseWithoutSubs)
@@ -108,8 +105,6 @@ public class BotSearchService {
         };
 
         List<Vacancy> vacancies = vacancyRepository.findAll(spec);
-
-        // Сортировка: сначала с активным Boost, потом по дате
         vacancies = sortVacanciesByBoost(vacancies);
 
         List<VacancyResponse> responses;
@@ -130,9 +125,6 @@ public class BotSearchService {
         return result;
     }
 
-    /**
-     * Просмотр вакансии (увеличивает счетчик)
-     */
     @Transactional
     public void trackVacancyView(Long vacancyId) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
@@ -154,9 +146,6 @@ public class BotSearchService {
         vacancyStatisticsRepository.save(stats);
     }
 
-    /**
-     * Клик по контактам вакансии
-     */
     @Transactional
     public void trackVacancyContactClick(Long vacancyId) {
         VacancyStatistics stats = vacancyStatisticsRepository
@@ -167,9 +156,6 @@ public class BotSearchService {
         vacancyStatisticsRepository.save(stats);
     }
 
-    /**
-     * Просмотр резюме
-     */
     @Transactional
     public void trackResumeView(Long resumeId) {
         Resume resume = resumeRepository.findById(resumeId)
@@ -191,9 +177,6 @@ public class BotSearchService {
         resumeStatisticsRepository.save(stats);
     }
 
-    /**
-     * Клик по контактам резюме
-     */
     @Transactional
     public void trackResumeContactClick(Long resumeId) {
         ResumeStatistics stats = resumeStatisticsRepository
@@ -204,9 +187,6 @@ public class BotSearchService {
         resumeStatisticsRepository.save(stats);
     }
 
-    /**
-     * Сортировка вакансий: Boost вверх, потом по дате
-     */
     private List<Vacancy> sortVacanciesByBoost(List<Vacancy> vacancies) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -220,15 +200,11 @@ public class BotSearchService {
                     if (v1HasBoost && !v2HasBoost) return -1;
                     if (!v1HasBoost && v2HasBoost) return 1;
 
-                    // Если оба с бустом или оба без, сортируем по дате
                     return v2.getCreatedAt().compareTo(v1.getCreatedAt());
                 })
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Сортировка резюме: Boost вверх, потом по дате
-     */
     private List<Resume> sortResumesByBoost(List<Resume> resumes) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -261,6 +237,14 @@ public class BotSearchService {
         response.setTelegramUsername(resume.getUser().getUsername());
         response.setPhone(resume.getUser().getPhone());
 
+        // Добавляем медиа файлы
+        List<MediaResponse> mediaList = resumeMediaRepository
+                .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
+                .stream()
+                .map(this::mapResumeMediaToResponse)
+                .collect(Collectors.toList());
+        response.setMedia(mediaList);
+
         return response;
     }
 
@@ -284,6 +268,13 @@ public class BotSearchService {
         response.setExperience(resume.getExperience());
         response.setDescription(resume.getDescription());
 
+        // Медиа доступны всем
+        List<MediaResponse> mediaList = resumeMediaRepository
+                .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
+                .stream()
+                .map(this::mapResumeMediaToResponse)
+                .collect(Collectors.toList());
+        response.setMedia(mediaList);
 
         return response;
     }
@@ -324,12 +315,17 @@ public class BotSearchService {
         response.setPreferredGender(vacancy.getPreferredGender());
         response.setSchedule(vacancy.getSchedule());
 
+        // Добавляем медиа файлы
+        List<MediaResponse> mediaList = vacancyMediaRepository
+                .findByVacancyIdOrderByDisplayOrderAsc(vacancy.getId())
+                .stream()
+                .map(this::mapVacancyMediaToResponse)
+                .collect(Collectors.toList());
+        response.setMedia(mediaList);
+
         return response;
     }
 
-    /**
-     * Получить статистику вакансии
-     */
     @Transactional(readOnly = true)
     public VacancyStatisticsResponse getVacancyStatistics(Long vacancyId) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
@@ -353,9 +349,6 @@ public class BotSearchService {
                 .build();
     }
 
-    /**
-     * Получить статистику резюме
-     */
     @Transactional(readOnly = true)
     public ResumeStatisticsResponse getResumeStatistics(Long resumeId) {
         Resume resume = resumeRepository.findById(resumeId)
@@ -376,6 +369,30 @@ public class BotSearchService {
                 .viewsCount(stats.getViewsCount())
                 .contactClicksCount(stats.getContactClicksCount())
                 .invitationCount(stats.getInvitationCount())
+                .build();
+    }
+
+    private MediaResponse mapResumeMediaToResponse(ResumeMedia media) {
+        return MediaResponse.builder()
+                .id(media.getId())
+                .mediaType(media.getMediaType().name())
+                .fileUrl(media.getFileUrl())
+                .fileName(media.getFileName())
+                .fileSize(media.getFileSize())
+                .displayOrder(media.getDisplayOrder())
+                .uploadedAt(media.getUploadedAt())
+                .build();
+    }
+
+    private MediaResponse mapVacancyMediaToResponse(VacancyMedia media) {
+        return MediaResponse.builder()
+                .id(media.getId())
+                .mediaType(media.getMediaType().name())
+                .fileUrl(media.getFileUrl())
+                .fileName(media.getFileName())
+                .fileSize(media.getFileSize())
+                .displayOrder(media.getDisplayOrder())
+                .uploadedAt(media.getUploadedAt())
                 .build();
     }
 }

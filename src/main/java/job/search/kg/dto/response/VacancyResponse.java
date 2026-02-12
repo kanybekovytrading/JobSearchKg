@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -34,4 +35,5 @@ public class VacancyResponse {
     private Integer minAge;
     private Integer maxAge;
     private Vacancy.GenderPreference preferredGender;
+    private List<MediaResponse> media;
 }

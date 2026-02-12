@@ -27,7 +27,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/withdrawals")
-@Tag(name = "Withdrawals", description = "Эндпоинты для вывода средств")
+@Tag(name = "Admin Withdrawals Controller", description = "Эндпоинты для вывода средств")
 @RequiredArgsConstructor
 public class AdminWithdrawalController {
 
