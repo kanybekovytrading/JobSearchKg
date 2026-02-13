@@ -52,7 +52,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/admin/analytics/**",
                                 "/api/statistic/**",
-                                "/api/ai/**"
+                                "/api/ai/**",
+                                "/api/webhooks/finik/**"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

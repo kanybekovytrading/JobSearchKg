@@ -93,16 +93,6 @@ public class BotVacancyController {
     }
 
     /**
-     * Получить все медиа файлы вакансии
-     * GET /api/bot/vacancies/{vacancyId}/media
-     */
-    @GetMapping("/{vacancyId}/media")
-    public ResponseEntity<List<MediaResponse>> getVacancyMedia(@PathVariable Long vacancyId) {
-        List<MediaResponse> media = vacancyService.getVacancyMedia(vacancyId);
-        return ResponseEntity.ok(media);
-    }
-
-    /**
      * Загрузить фото к вакансии
      * POST /api/bot/vacancies/{vacancyId}/media/photo
      */
@@ -165,20 +155,6 @@ public class BotVacancyController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-    }
-
-    /**
-     * Изменить порядок отображения медиа
-     * PATCH /api/bot/vacancies/media/{mediaId}/order
-     */
-    @PatchMapping("/media/{mediaId}/order")
-    public ResponseEntity<Void> updateMediaOrder(
-            @PathVariable Long mediaId,
-            @RequestParam("telegramId") Long telegramId,
-            @RequestParam("newOrder") Integer newOrder
-    ) {
-        vacancyService.updateMediaOrder(mediaId, telegramId, newOrder);
-        return ResponseEntity.ok().build();
     }
 
 }

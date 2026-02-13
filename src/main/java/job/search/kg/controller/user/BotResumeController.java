@@ -92,17 +92,6 @@ public class BotResumeController {
         return ResponseEntity.ok(botResumeService.updateResume(resumeId, telegramId, request));
     }
 
-
-    /**
-     * Получить все медиа файлы резюме
-     * GET /api/bot/resumes/{resumeId}/media
-     */
-    @GetMapping("/{resumeId}/media")
-    public ResponseEntity<List<MediaResponse>> getResumeMedia(@PathVariable Long resumeId) {
-        List<MediaResponse> media = resumeService.getResumeMedia(resumeId);
-        return ResponseEntity.ok(media);
-    }
-
     @PostMapping(value = "/{resumeId}/media/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MediaResponse> uploadPhoto(
             @PathVariable Long resumeId,
@@ -162,19 +151,5 @@ public class BotResumeController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-    }
-
-    /**
-     * Изменить порядок отображения медиа
-     * PATCH /api/bot/resumes/media/{mediaId}/order
-     */
-    @PatchMapping("/media/{mediaId}/order")
-    public ResponseEntity<Void> updateMediaOrder(
-            @PathVariable Long mediaId,
-            @RequestParam("telegramId") Long telegramId,
-            @RequestParam("newOrder") Integer newOrder
-    ) {
-        resumeService.updateMediaOrder(mediaId, telegramId, newOrder);
-        return ResponseEntity.ok().build();
     }
 }

@@ -16,11 +16,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,43 +37,60 @@ public class BotSearchService {
     private final ResumeStatisticsRepository resumeStatisticsRepository;
     private final ResumeMediaRepository resumeMediaRepository;
     private final VacancyMediaRepository vacancyMediaRepository;
+    private final FreeAccessTrackingService freeAccessTrackingService;
+    private final FreeAccessTrackingRepository freeAccessTrackingRepository;
 
-    @Transactional(readOnly = true)
+    private static final int FREE_DAILY_LIMIT = 3;
+
+    @Transactional
     public SearchResultResponse<ResumeResponse> searchResumes(Long telegramId, SearchRequest request) {
 
-        Specification<Resume> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+        Specification<Resume> spec = buildResumeSpecification(
+                request.getCityId(),
+                request.getSphereId(),
+                request.getCategoryId(),
+                request.getSubcategoryId()
+        );
 
-            predicates.add(cb.equal(root.get("isActive"), true));
+        // Получаем все активные boost'ы одним запросом
+        LocalDateTime now = LocalDateTime.now();
+        Set<Long> boostedResumeIds = resumeBoostRepository
+                .findActiveBoostResumeIds(now);
 
-            if (request.getCityId() != null) {
-                predicates.add(cb.equal(root.get("city").get("id"), request.getCityId()));
-            }
-
-            if (request.getCategoryId() != null) {
-                predicates.add(cb.equal(root.get("category").get("id"), request.getCategoryId()));
-            }
-
-            if (request.getSubcategoryId() != null) {
-                predicates.add(cb.equal(root.get("subcategory").get("id"), request.getSubcategoryId()));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
+        // Получаем все резюме
         List<Resume> resumes = resumeRepository.findAll(spec);
-        resumes = sortResumesByBoost(resumes);
 
-        List<ResumeResponse> responses;
+        // Сортируем в памяти (теперь без дополнительных запросов)
+        resumes = sortResumesByBoostOptimized(resumes, boostedResumeIds);
 
-        if (!accessService.canSearchEmployees(telegramId)) {
-            responses = resumes.stream()
-                    .map(this::mapResumeToResponseWithoutSubs)
-                    .collect(Collectors.toList());
+        boolean hasSubscription = accessService.canSearchEmployees(telegramId);
+
+        List<ResumeResponse> responses = new ArrayList<>();
+
+        if (hasSubscription) {
+            // С подпиской - все резюме с контактами
+            for (Resume resume : resumes) {
+                responses.add(mapResumeToResponse(resume));
+            }
         } else {
-            responses = resumes.stream()
-                    .map(this::mapResumeToResponse)
-                    .collect(Collectors.toList());
+            // Без подписки - определяем, какие 3 резюме показать с контактами
+            Set<Long> freeAccessResumeIds = getFreeAccessResumeIdsOptimized(
+                    telegramId,
+                    request.getCityId(),
+                    request.getSphereId(),
+                    request.getCategoryId(),
+                    request.getSubcategoryId(),
+                    resumes
+            );
+
+            // Показываем ВСЕ резюме, но только 3 с контактами
+            for (Resume resume : resumes) {
+                if (freeAccessResumeIds.contains(resume.getId())) {
+                    responses.add(mapResumeToResponse(resume));
+                } else {
+                    responses.add(mapResumeToResponseWithoutSubs(resume));
+                }
+            }
         }
 
         SearchResultResponse<ResumeResponse> result = new SearchResultResponse<>();
@@ -82,40 +100,52 @@ public class BotSearchService {
         return result;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public SearchResultResponse<VacancyResponse> searchVacancies(Long telegramId, SearchRequest request) {
 
-        Specification<Vacancy> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
+        Specification<Vacancy> spec = buildVacancySpecification(
+                request.getCityId(),
+                request.getSphereId(),
+                request.getCategoryId(),
+                request.getSubcategoryId()
+        );
 
-            predicates.add(cb.equal(root.get("isActive"), true));
+        // Получаем все активные boost'ы одним запросом
+        LocalDateTime now = LocalDateTime.now();
+        Set<Long> boostedVacancyIds = vacancyBoostRepository
+                .findActiveBoostVacancyIds(now);
 
-            if (request.getCityId() != null) {
-                predicates.add(cb.equal(root.get("city").get("id"), request.getCityId()));
-            }
-            if (request.getCategoryId() != null) {
-                predicates.add(cb.equal(root.get("category").get("id"), request.getCategoryId()));
-            }
-
-            if (request.getSubcategoryId() != null) {
-                predicates.add(cb.equal(root.get("subcategory").get("id"), request.getSubcategoryId()));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-
+        // Получаем все вакансии
         List<Vacancy> vacancies = vacancyRepository.findAll(spec);
-        vacancies = sortVacanciesByBoost(vacancies);
 
-        List<VacancyResponse> responses;
-        if (!accessService.canSearchJobs(telegramId)) {
-            responses = vacancies.stream()
-                    .map(this::mapVacancyToResponseWithoutSubs)
-                    .collect(Collectors.toList());
+        // Сортируем в памяти
+        vacancies = sortVacanciesByBoostOptimized(vacancies, boostedVacancyIds);
+
+        boolean hasSubscription = accessService.canSearchJobs(telegramId);
+
+        List<VacancyResponse> responses = new ArrayList<>();
+
+        if (hasSubscription) {
+            for (Vacancy vacancy : vacancies) {
+                responses.add(mapVacancyToResponse(vacancy));
+            }
         } else {
-            responses = vacancies.stream()
-                    .map(this::mapVacancyToResponse)
-                    .collect(Collectors.toList());
+            Set<Long> freeAccessVacancyIds = getFreeAccessVacancyIdsOptimized(
+                    telegramId,
+                    request.getCityId(),
+                    request.getSphereId(),
+                    request.getCategoryId(),
+                    request.getSubcategoryId(),
+                    vacancies
+            );
+
+            for (Vacancy vacancy : vacancies) {
+                if (freeAccessVacancyIds.contains(vacancy.getId())) {
+                    responses.add(mapVacancyToResponse(vacancy));
+                } else {
+                    responses.add(mapVacancyToResponseWithoutSubs(vacancy));
+                }
+            }
         }
 
         SearchResultResponse<VacancyResponse> result = new SearchResultResponse<>();
@@ -125,6 +155,165 @@ public class BotSearchService {
         return result;
     }
 
+    /**
+     * ОПТИМИЗИРОВАННАЯ версия - без N+1 запросов
+     */
+    private Set<Long> getFreeAccessResumeIdsOptimized(
+            Long telegramId,
+            Integer cityId,
+            Integer sphereId,
+            Integer categoryId,
+            Integer subcategoryId,
+            List<Resume> sortedResumes) {
+
+        LocalDate today = LocalDate.now();
+        String searchKey = buildSearchKey("RESUME", cityId, sphereId, categoryId, subcategoryId);
+
+        // Проверяем кэш одним запросом
+        List<Long> cachedIds = freeAccessTrackingRepository
+                .findTodayFreeAccessIds(telegramId, searchKey, today);
+
+        if (!cachedIds.isEmpty() && cachedIds.size() >= FREE_DAILY_LIMIT) {
+            return new HashSet<>(cachedIds.subList(0, FREE_DAILY_LIMIT));
+        }
+
+        // Выбираем первые 3 из уже отсортированного списка
+        List<Long> selectedIds = sortedResumes.stream()
+                .limit(FREE_DAILY_LIMIT)
+                .map(Resume::getId)
+                .collect(Collectors.toList());
+
+        // Сохраняем батчем
+        if (cachedIds.isEmpty() && !selectedIds.isEmpty()) {
+            freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
+        }
+
+        return new HashSet<>(selectedIds);
+    }
+
+    protected Set<Long> getFreeAccessVacancyIdsOptimized(
+            Long telegramId,
+            Integer cityId,
+            Integer sphereId,
+            Integer categoryId,
+            Integer subcategoryId,
+            List<Vacancy> sortedVacancies) {
+
+        LocalDate today = LocalDate.now();
+        String searchKey = buildSearchKey("VACANCY", cityId, sphereId, categoryId, subcategoryId);
+
+        List<Long> cachedIds = freeAccessTrackingRepository
+                .findTodayFreeAccessIds(telegramId, searchKey, today);
+
+        if (!cachedIds.isEmpty() && cachedIds.size() >= FREE_DAILY_LIMIT) {
+            return new HashSet<>(cachedIds.subList(0, FREE_DAILY_LIMIT));
+        }
+
+        List<Long> selectedIds = sortedVacancies.stream()
+                .limit(FREE_DAILY_LIMIT)
+                .map(Vacancy::getId)
+                .collect(Collectors.toList());
+
+        if (cachedIds.isEmpty() && !selectedIds.isEmpty()) {
+            freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
+        }
+
+        return new HashSet<>(selectedIds);
+    }
+
+    /**
+     * ОПТИМИЗИРОВАННАЯ сортировка - без N+1 запросов
+     */
+    private List<Resume> sortResumesByBoostOptimized(List<Resume> resumes, Set<Long> boostedIds) {
+        return resumes.stream()
+                .sorted((r1, r2) -> {
+                    boolean r1HasBoost = boostedIds.contains(r1.getId());
+                    boolean r2HasBoost = boostedIds.contains(r2.getId());
+
+                    if (r1HasBoost && !r2HasBoost) return -1;
+                    if (!r1HasBoost && r2HasBoost) return 1;
+
+                    return r2.getCreatedAt().compareTo(r1.getCreatedAt());
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<Vacancy> sortVacanciesByBoostOptimized(List<Vacancy> vacancies, Set<Long> boostedIds) {
+        return vacancies.stream()
+                .sorted((v1, v2) -> {
+                    boolean v1HasBoost = boostedIds.contains(v1.getId());
+                    boolean v2HasBoost = boostedIds.contains(v2.getId());
+
+                    if (v1HasBoost && !v2HasBoost) return -1;
+                    if (!v1HasBoost && v2HasBoost) return 1;
+
+                    return v2.getCreatedAt().compareTo(v1.getCreatedAt());
+                })
+                .collect(Collectors.toList());
+    }
+
+    private String buildSearchKey(String type, Integer cityId, Integer sphereId,
+                                  Integer categoryId, Integer subcategoryId) {
+        return String.format("%s_C%d_S%d_CAT%d_SUB%d",
+                type,
+                cityId != null ? cityId : 0,
+                sphereId != null ? sphereId : 0,
+                categoryId != null ? categoryId : 0,
+                subcategoryId != null ? subcategoryId : 0
+        );
+    }
+
+    private Specification<Resume> buildResumeSpecification(
+            Integer cityId, Integer sphereId, Integer categoryId, Integer subcategoryId) {
+
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("isActive"), true));
+
+            if (cityId != null) {
+                predicates.add(cb.equal(root.get("city").get("id"), cityId));
+            }
+            if (sphereId != null) {
+                Join<Resume, Category> categoryJoin = root.join("category");
+                predicates.add(cb.equal(categoryJoin.get("sphere").get("id"), sphereId));
+            }
+            if (categoryId != null) {
+                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+            }
+            if (subcategoryId != null) {
+                predicates.add(cb.equal(root.get("subcategory").get("id"), subcategoryId));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private Specification<Vacancy> buildVacancySpecification(
+            Integer cityId, Integer sphereId, Integer categoryId, Integer subcategoryId) {
+
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("isActive"), true));
+
+            if (cityId != null) {
+                predicates.add(cb.equal(root.get("city").get("id"), cityId));
+            }
+            if (sphereId != null) {
+                Join<Vacancy, Category> categoryJoin = root.join("category");
+                predicates.add(cb.equal(categoryJoin.get("sphere").get("id"), sphereId));
+            }
+            if (categoryId != null) {
+                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+            }
+            if (subcategoryId != null) {
+                predicates.add(cb.equal(root.get("subcategory").get("id"), subcategoryId));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    // ... остальные методы (trackVacancyView, mappers и т.д.) остаются без изменений
     @Transactional
     public void trackVacancyView(Long vacancyId) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
@@ -187,42 +376,6 @@ public class BotSearchService {
         resumeStatisticsRepository.save(stats);
     }
 
-    private List<Vacancy> sortVacanciesByBoost(List<Vacancy> vacancies) {
-        LocalDateTime now = LocalDateTime.now();
-
-        return vacancies.stream()
-                .sorted((v1, v2) -> {
-                    boolean v1HasBoost = vacancyBoostRepository
-                            .existsByVacancyIdAndIsActiveTrueAndExpiresAtAfter(v1.getId(), now);
-                    boolean v2HasBoost = vacancyBoostRepository
-                            .existsByVacancyIdAndIsActiveTrueAndExpiresAtAfter(v2.getId(), now);
-
-                    if (v1HasBoost && !v2HasBoost) return -1;
-                    if (!v1HasBoost && v2HasBoost) return 1;
-
-                    return v2.getCreatedAt().compareTo(v1.getCreatedAt());
-                })
-                .collect(Collectors.toList());
-    }
-
-    private List<Resume> sortResumesByBoost(List<Resume> resumes) {
-        LocalDateTime now = LocalDateTime.now();
-
-        return resumes.stream()
-                .sorted((r1, r2) -> {
-                    boolean r1HasBoost = resumeBoostRepository
-                            .existsByResumeIdAndIsActiveTrueAndExpiresAtAfter(r1.getId(), now);
-                    boolean r2HasBoost = resumeBoostRepository
-                            .existsByResumeIdAndIsActiveTrueAndExpiresAtAfter(r2.getId(), now);
-
-                    if (r1HasBoost && !r2HasBoost) return -1;
-                    if (!r1HasBoost && r2HasBoost) return 1;
-
-                    return r2.getCreatedAt().compareTo(r1.getCreatedAt());
-                })
-                .collect(Collectors.toList());
-    }
-
     public ResumeResponse mapResumeToResponse(Resume resume) {
         ResumeResponse response = new ResumeResponse();
         response.setId(resume.getId());
@@ -237,7 +390,6 @@ public class BotSearchService {
         response.setTelegramUsername(resume.getUser().getUsername());
         response.setPhone(resume.getUser().getPhone());
 
-        // Добавляем медиа файлы
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
                 .stream()
@@ -249,12 +401,11 @@ public class BotSearchService {
     }
 
     public ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
-
         ResumeResponse response = new ResumeResponse();
 
         if (resume.getUser().getPhone() != null && !resume.getUser().getPhone().isEmpty()) {
             String phone = resume.getUser().getPhone();
-            String maskedPhone = phone.substring(0, 6) + " *** ***";
+            String maskedPhone = phone.length() > 6 ? phone.substring(0, 6) + " *** ***" : "*** *** ***";
             response.setPhone(maskedPhone);
         }
 
@@ -268,7 +419,6 @@ public class BotSearchService {
         response.setExperience(resume.getExperience());
         response.setDescription(resume.getDescription());
 
-        // Медиа доступны всем
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
                 .stream()
@@ -288,42 +438,12 @@ public class BotSearchService {
     public VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
         VacancyResponse response = new VacancyResponse();
 
-        if (vacancy.getUser().getPhone() != null && !vacancy.getUser().getPhone().isEmpty()) {
+        if (vacancy.getPhone() != null && !vacancy.getPhone().isEmpty()) {
             String phone = vacancy.getPhone();
-            String maskedPhone = phone.substring(0, 6) + " *** ***";
+            String maskedPhone = phone.length() > 6 ? phone.substring(0, 6) + " *** ***" : "*** *** ***";
             response.setPhone(maskedPhone);
         }
         return getVacancyResponse(vacancy, response);
-    }
-
-    @NonNull
-    private VacancyResponse getVacancyResponse(Vacancy vacancy, VacancyResponse response) {
-        response.setId(vacancy.getId());
-        response.setTitle(vacancy.getTitle());
-        response.setDescription(vacancy.getDescription());
-        response.setSalary(vacancy.getSalary());
-        response.setCompanyName(vacancy.getCompanyName());
-        response.setCityName(vacancy.getCity().getNameRu());
-        response.setCategoryName(vacancy.getCategory().getNameRu());
-        response.setSubcategoryName(vacancy.getSubcategory().getNameRu());
-        response.setCreatedAt(vacancy.getCreatedAt());
-        response.setTelegramUsername(vacancy.getUser().getUsername());
-        response.setExperienceInYear(vacancy.getExperienceInYear());
-        response.setAddress(vacancy.getAddress());
-        response.setMaxAge(vacancy.getMaxAge());
-        response.setMinAge(vacancy.getMinAge());
-        response.setPreferredGender(vacancy.getPreferredGender());
-        response.setSchedule(vacancy.getSchedule());
-
-        // Добавляем медиа файлы
-        List<MediaResponse> mediaList = vacancyMediaRepository
-                .findByVacancyIdOrderByDisplayOrderAsc(vacancy.getId())
-                .stream()
-                .map(this::mapVacancyMediaToResponse)
-                .collect(Collectors.toList());
-        response.setMedia(mediaList);
-
-        return response;
     }
 
     @Transactional(readOnly = true)
@@ -370,6 +490,39 @@ public class BotSearchService {
                 .contactClicksCount(stats.getContactClicksCount())
                 .invitationCount(stats.getInvitationCount())
                 .build();
+    }
+
+    @NonNull
+    private VacancyResponse getVacancyResponse(Vacancy vacancy, VacancyResponse response) {
+        response.setId(vacancy.getId());
+        response.setTitle(vacancy.getTitle());
+        response.setDescription(vacancy.getDescription());
+        response.setSalary(vacancy.getSalary());
+        response.setCompanyName(vacancy.getCompanyName());
+        response.setCityName(vacancy.getCity().getNameRu());
+        response.setCategoryName(vacancy.getCategory().getNameRu());
+        response.setSubcategoryName(vacancy.getSubcategory().getNameRu());
+        response.setCreatedAt(vacancy.getCreatedAt());
+
+        if (response.getPhone() != null && !response.getPhone().contains("***")) {
+            response.setTelegramUsername(vacancy.getUser().getUsername());
+        }
+
+        response.setExperienceInYear(vacancy.getExperienceInYear());
+        response.setAddress(vacancy.getAddress());
+        response.setMaxAge(vacancy.getMaxAge());
+        response.setMinAge(vacancy.getMinAge());
+        response.setPreferredGender(vacancy.getPreferredGender());
+        response.setSchedule(vacancy.getSchedule());
+
+        List<MediaResponse> mediaList = vacancyMediaRepository
+                .findByVacancyIdOrderByDisplayOrderAsc(vacancy.getId())
+                .stream()
+                .map(this::mapVacancyMediaToResponse)
+                .collect(Collectors.toList());
+        response.setMedia(mediaList);
+
+        return response;
     }
 
     private MediaResponse mapResumeMediaToResponse(ResumeMedia media) {

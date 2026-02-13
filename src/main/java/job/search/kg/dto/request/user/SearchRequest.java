@@ -7,4 +7,5 @@ public class SearchRequest {
     private Integer cityId;
     private Integer categoryId;
     private Integer subcategoryId;
+    private Integer sphereId;
 }

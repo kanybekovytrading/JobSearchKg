@@ -1,6 +1,5 @@
 package job.search.kg.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import job.search.kg.dto.request.payment.FinikWebhookPayload;
 import job.search.kg.dto.response.user.WebhookData;
 import job.search.kg.payment.FinikWebhookService;
