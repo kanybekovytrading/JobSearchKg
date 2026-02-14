@@ -101,6 +101,8 @@ public class BotVacancyService {
         vacancy.setSchedule(request.getSchedule());
         vacancy.setExperienceInYear(request.getExperienceInYear());
         vacancy.setIsActive(true);
+        vacancy.setLatitude(request.getLatitude());
+        vacancy.setLongitude(request.getLongitude());
 
         Vacancy savedVacancy = vacancyRepository.save(vacancy);
 
