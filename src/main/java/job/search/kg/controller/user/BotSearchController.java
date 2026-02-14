@@ -38,8 +38,8 @@ public class BotSearchController {
     public ResponseEntity<SearchResultResponse<VacancyResponse>> searchVacancies(
             @RequestParam Long telegramId,
             @RequestBody SearchRequest request,
-            @RequestParam Double userLatitude,
-            @RequestParam  Double userLongitude) {
+            @RequestParam(required = false)  Double userLatitude,
+            @RequestParam(required = false)  Double userLongitude) {
         return ResponseEntity.ok(botSearchService.searchVacancies(telegramId, request,  userLatitude, userLongitude));
     }
 }
