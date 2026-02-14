@@ -14,8 +14,6 @@ public interface UserTaskRepository extends JpaRepository<UserTask, Long> {
 
     List<UserTask> findByUser(User user);
 
-    Optional<UserTask> findByUserAndTask(User user, SocialTask task);
-
     boolean existsByUserAndTask(User user, SocialTask task);
 
     Long countByTask(SocialTask task);

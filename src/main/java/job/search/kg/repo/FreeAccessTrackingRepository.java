@@ -8,9 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Repository
 public interface FreeAccessTrackingRepository extends JpaRepository<FreeAccessTracking, Long> {
@@ -37,16 +35,4 @@ public interface FreeAccessTrackingRepository extends JpaRepository<FreeAccessTr
     @Modifying
     @Query("DELETE FROM FreeAccessTracking fat WHERE fat.accessDate < :date")
     void deleteOldRecords(@Param("date") LocalDate date);
-
-    // VacancyBoostRepository
-    @Query("SELECT vb.vacancy.id FROM VacancyBoost vb " +
-            "WHERE vb.isActive = true " +
-            "AND vb.expiresAt > :now")
-    Set<Long> findActiveBoostVacancyIds(@Param("now") LocalDateTime now);
-
-    // ResumeBoostRepository
-    @Query("SELECT rb.resume.id FROM ResumeBoost rb " +
-            "WHERE rb.isActive = true " +
-            "AND rb.expiresAt > :now")
-    Set<Long> findActiveBoostResumeIds(@Param("now") LocalDateTime now);
 }

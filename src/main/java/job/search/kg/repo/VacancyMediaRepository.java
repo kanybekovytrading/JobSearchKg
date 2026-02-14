@@ -10,8 +10,4 @@ import java.util.List;
 public interface VacancyMediaRepository extends JpaRepository<VacancyMedia, Long> {
 
     List<VacancyMedia> findByVacancyIdOrderByDisplayOrderAsc(Long vacancyId);
-
-    long countByVacancyId(Long vacancyId);
-
-    void deleteByVacancyId(Long vacancyId);
 }

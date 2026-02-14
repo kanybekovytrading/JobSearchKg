@@ -15,8 +15,6 @@ public interface VacancyRepository extends JpaRepository<Vacancy, Long>, JpaSpec
 
     List<Vacancy> findByUser(User user);
 
-    List<Vacancy> findByUserAndIsActive(User user, Boolean isActive);
-
     Long countByIsActive(Boolean isActive);
 
     Optional<Vacancy> findFirstByUserIdOrderByCreatedAtAsc(Long userId);

@@ -8,6 +8,7 @@ import job.search.kg.entity.*;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import job.search.kg.service.MinioStorageService;
+import job.search.kg.telegram.notification.VacancyNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class BotVacancyService {
     private final SubcategoryRepository subcategoryRepository;
     private final VacancyMediaRepository vacancyMediaRepository;
     private final MinioStorageService minioStorageService;
+    private final VacancyNotificationService notificationService;
 
     private static final int MAX_PHOTOS = 10;
     private static final int MAX_VIDEOS = 3;
@@ -100,7 +102,11 @@ public class BotVacancyService {
         vacancy.setExperienceInYear(request.getExperienceInYear());
         vacancy.setIsActive(true);
 
-        return vacancyRepository.save(vacancy);
+        Vacancy savedVacancy = vacancyRepository.save(vacancy);
+
+        notificationService.notifyUsersAboutNewVacancy(savedVacancy);
+
+        return savedVacancy;
     }
 
     @Transactional(readOnly = true)

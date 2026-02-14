@@ -36,4 +36,5 @@ public class VacancyResponse {
     private Integer maxAge;
     private Vacancy.GenderPreference preferredGender;
     private List<MediaResponse> media;
+    private Double distanceKm;    // 7.5
 }

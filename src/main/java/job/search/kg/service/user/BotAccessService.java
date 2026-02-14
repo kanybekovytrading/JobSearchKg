@@ -10,28 +10,23 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class BotAccessService {
 
-    private static final int POINTS_FOR_SEARCH_ACCESS = 1500;
     private final BotSubscriptionService subscriptionService;
-    private final BotPointsService pointsService;
 
     public boolean canSearchJobs(Long telegramId) {
-        return subscriptionService.hasActiveSubscription(telegramId) ||
-                pointsService.hasEnoughPoints(telegramId, POINTS_FOR_SEARCH_ACCESS);
+        return subscriptionService.hasActiveSubscription(telegramId);
     }
 
     public boolean canSearchEmployees(Long telegramId) {
-        return subscriptionService.hasActiveSubscription(telegramId) ||
-                pointsService.hasEnoughPoints(telegramId, POINTS_FOR_SEARCH_ACCESS);
+        return subscriptionService.hasActiveSubscription(telegramId);
     }
 
     @Transactional(readOnly = true)
     public AccessCheckResponse checkAccess(Long telegramId) {
         boolean hasSubscription = subscriptionService.hasActiveSubscription(telegramId);
-        boolean hasPointsForSearch = pointsService.hasEnoughPoints(telegramId, POINTS_FOR_SEARCH_ACCESS);
         AccessCheckResponse response = new AccessCheckResponse();
         response.setHasActiveSubscription(hasSubscription);
-        response.setCanSearchJobs(hasSubscription || hasPointsForSearch);
-        response.setCanSearchEmployees(hasSubscription || hasPointsForSearch);
+        response.setCanSearchJobs(hasSubscription);
+        response.setCanSearchEmployees(hasSubscription);
         return response;
     }
 }

@@ -11,9 +11,6 @@ import java.util.List;
 @Repository
 public interface SphereRepository extends JpaRepository<Sphere, Integer> {
 
-    // Получить все активные сферы
-    List<Sphere> findByIsActiveOrderByCreatedAtAsc(Boolean isActive);
-
     // Получить все активные сферы с сортировкой по имени
     List<Sphere> findByIsActive(Boolean isActive);
 

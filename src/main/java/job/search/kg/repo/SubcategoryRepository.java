@@ -10,7 +10,5 @@ import java.util.List;
 @Repository
 public interface SubcategoryRepository extends JpaRepository<Subcategory, Integer> {
 
-    List<Subcategory> findByCategoryAndIsActive(Category category, Boolean isActive);
-
     List<Subcategory> findByCategoryIdAndIsActive(Integer categoryId, Boolean isActive);
 }

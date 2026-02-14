@@ -31,13 +31,15 @@ public class BotSearchController {
 
     @Operation(
             summary = "Поиск вакансий",
-            description = "Поиск вакансий по параметрам: город, категория, подкатегория. " +
+            description = "Поиск вакансий по параметрам: город, сфера, категория, подкатегория. " +
                     "Результаты отсортированы: сначала с активным Boost, затем по дате создания."
     )
     @PostMapping("/search/vacancies")
     public ResponseEntity<SearchResultResponse<VacancyResponse>> searchVacancies(
             @RequestParam Long telegramId,
-            @RequestBody SearchRequest request) {
-        return ResponseEntity.ok(botSearchService.searchVacancies(telegramId, request));
+            @RequestBody SearchRequest request,
+            @RequestParam Double userLatitude,
+            @RequestParam  Double userLongitude) {
+        return ResponseEntity.ok(botSearchService.searchVacancies(telegramId, request,  userLatitude, userLongitude));
     }
 }

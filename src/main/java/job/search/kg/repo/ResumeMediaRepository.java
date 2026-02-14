@@ -11,7 +11,4 @@ public interface ResumeMediaRepository extends JpaRepository<ResumeMedia, Long> 
 
     List<ResumeMedia> findByResumeIdOrderByDisplayOrderAsc(Long resumeId);
 
-    long countByResumeId(Long resumeId);
-
-    void deleteByResumeId(Long resumeId);
 }

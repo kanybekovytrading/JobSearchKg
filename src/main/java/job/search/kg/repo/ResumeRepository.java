@@ -4,6 +4,8 @@ import job.search.kg.entity.Resume;
 import job.search.kg.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,9 +16,19 @@ public interface ResumeRepository extends JpaRepository<Resume, Long>, JpaSpecif
 
     List<Resume> findByUser(User user);
 
-    List<Resume> findByUserAndIsActive(User user, Boolean isActive);
-
     Long countByIsActive(Boolean isActive);
 
     Optional<Resume> findFirstByUserIdOrderByCreatedAtAsc(Long userId);
+    /**
+     * Найти активные резюме по подкатегории и городу
+     * Используется для отправки уведомлений о новых вакансиях
+     */
+    @Query("SELECT r FROM Resume r " +
+            "WHERE r.subcategory.id = :subcategoryId " +
+            "AND r.city.id = :cityId " +
+            "AND r.isActive = true")
+    List<Resume> findBySubcategoryIdAndCityIdAndIsActiveTrue(
+            @Param("subcategoryId") Integer subcategoryId,
+            @Param("cityId") Integer cityId
+    );
 }

@@ -40,9 +40,6 @@ public class MinioInitializer implements CommandLineRunner {
                 minioClient.makeBucket(
                         MakeBucketArgs.builder().bucket(bucketName).build()
                 );
-                log.info("✅ Bucket '{}' created successfully", bucketName);
-            } else {
-                log.info("ℹ️ Bucket '{}' already exists", bucketName);
             }
         } catch (Exception e) {
             log.error("❌ Error creating bucket '{}'", bucketName, e);
@@ -76,8 +73,6 @@ public class MinioInitializer implements CommandLineRunner {
                             .config(policy)
                             .build()
             );
-
-            log.info("✅ Public read policy set for bucket '{}'", bucketName);
         } catch (Exception e) {
             log.error("❌ Error setting public policy for bucket '{}'", bucketName, e);
             // Не бросаем исключение, так как bucket уже может иметь политику

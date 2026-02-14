@@ -11,8 +11,4 @@ public interface VacancyResponseRepository extends JpaRepository<VacancyResponse
     boolean existsByVacancyIdAndResumeId(Long vacancyId, Long resumeId);
 
     List<VacancyResponse> findByVacancyIdOrderByCreatedAtDesc(Long vacancyId);
-
-    List<VacancyResponse> findByApplicantTelegramIdOrderByCreatedAtDesc(Long telegramId);
-
-    List<VacancyResponse> findByResumeIdOrderByCreatedAtDesc(Long resumeId);
 }

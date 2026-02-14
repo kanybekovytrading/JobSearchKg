@@ -10,8 +10,6 @@ import java.util.List;
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
-    List<Feedback> findByUser(User user);
-
     List<Feedback> findByStatusOrderByCreatedAtDesc(Feedback.FeedbackStatus status);
 
     Long countByStatus(Feedback.FeedbackStatus status);

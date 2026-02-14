@@ -10,6 +10,7 @@ import job.search.kg.dto.response.user.VacancyStatisticsResponse;
 import job.search.kg.entity.*;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
+import job.search.kg.service.LocationService;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.domain.Specification;
@@ -39,8 +40,71 @@ public class BotSearchService {
     private final VacancyMediaRepository vacancyMediaRepository;
     private final FreeAccessTrackingService freeAccessTrackingService;
     private final FreeAccessTrackingRepository freeAccessTrackingRepository;
+    private final LocationService locationService;
 
     private static final int FREE_DAILY_LIMIT = 3;
+
+    @Transactional
+    public SearchResultResponse<VacancyResponse> searchVacancies(
+            Long telegramId,
+            SearchRequest request,
+            Double userLatitude,
+            Double userLongitude) {
+
+        Specification<Vacancy> spec = buildVacancySpecification(
+                request.getCityId(),
+                request.getSphereId(),
+                request.getCategoryId(),
+                request.getSubcategoryId()
+        );
+
+        LocalDateTime now = LocalDateTime.now();
+        Set<Long> boostedVacancyIds = vacancyBoostRepository
+                .findActiveBoostVacancyIds(now);
+
+        List<Vacancy> vacancies = vacancyRepository.findAll(spec);
+
+        // Сортируем с учетом boost и расстояния
+        vacancies = sortVacanciesByBoostAndDistance(
+                vacancies,
+                boostedVacancyIds,
+                userLatitude,
+                userLongitude
+        );
+
+        boolean hasSubscription = accessService.canSearchJobs(telegramId);
+
+        List<VacancyResponse> responses = new ArrayList<>();
+
+        if (hasSubscription) {
+            for (Vacancy vacancy : vacancies) {
+                responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude));
+            }
+        } else {
+            Set<Long> freeAccessVacancyIds = getFreeAccessVacancyIdsOptimized(
+                    telegramId,
+                    request.getCityId(),
+                    request.getSphereId(),
+                    request.getCategoryId(),
+                    request.getSubcategoryId(),
+                    vacancies
+            );
+
+            for (Vacancy vacancy : vacancies) {
+                if (freeAccessVacancyIds.contains(vacancy.getId())) {
+                    responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude));
+                } else {
+                    responses.add(mapVacancyToResponseWithoutSubs(vacancy, userLatitude, userLongitude));
+                }
+            }
+        }
+
+        SearchResultResponse<VacancyResponse> result = new SearchResultResponse<>();
+        result.setResults(responses);
+        result.setTotal(responses.size());
+
+        return result;
+    }
 
     @Transactional
     public SearchResultResponse<ResumeResponse> searchResumes(Long telegramId, SearchRequest request) {
@@ -52,15 +116,12 @@ public class BotSearchService {
                 request.getSubcategoryId()
         );
 
-        // Получаем все активные boost'ы одним запросом
         LocalDateTime now = LocalDateTime.now();
         Set<Long> boostedResumeIds = resumeBoostRepository
                 .findActiveBoostResumeIds(now);
 
-        // Получаем все резюме
         List<Resume> resumes = resumeRepository.findAll(spec);
 
-        // Сортируем в памяти (теперь без дополнительных запросов)
         resumes = sortResumesByBoostOptimized(resumes, boostedResumeIds);
 
         boolean hasSubscription = accessService.canSearchEmployees(telegramId);
@@ -68,12 +129,10 @@ public class BotSearchService {
         List<ResumeResponse> responses = new ArrayList<>();
 
         if (hasSubscription) {
-            // С подпиской - все резюме с контактами
             for (Resume resume : resumes) {
                 responses.add(mapResumeToResponse(resume));
             }
         } else {
-            // Без подписки - определяем, какие 3 резюме показать с контактами
             Set<Long> freeAccessResumeIds = getFreeAccessResumeIdsOptimized(
                     telegramId,
                     request.getCityId(),
@@ -83,7 +142,6 @@ public class BotSearchService {
                     resumes
             );
 
-            // Показываем ВСЕ резюме, но только 3 с контактами
             for (Resume resume : resumes) {
                 if (freeAccessResumeIds.contains(resume.getId())) {
                     responses.add(mapResumeToResponse(resume));
@@ -100,64 +158,111 @@ public class BotSearchService {
         return result;
     }
 
-    @Transactional
-    public SearchResultResponse<VacancyResponse> searchVacancies(Long telegramId, SearchRequest request) {
+    /**
+     * Сортировка вакансий с учетом boost и расстояния
+     */
+    private List<Vacancy> sortVacanciesByBoostAndDistance(
+            List<Vacancy> vacancies,
+            Set<Long> boostedIds,
+            Double userLat,
+            Double userLon) {
 
-        Specification<Vacancy> spec = buildVacancySpecification(
-                request.getCityId(),
-                request.getSphereId(),
-                request.getCategoryId(),
-                request.getSubcategoryId()
-        );
+        return vacancies.stream()
+                .sorted((v1, v2) -> {
+                    boolean v1HasBoost = boostedIds.contains(v1.getId());
+                    boolean v2HasBoost = boostedIds.contains(v2.getId());
 
-        // Получаем все активные boost'ы одним запросом
-        LocalDateTime now = LocalDateTime.now();
-        Set<Long> boostedVacancyIds = vacancyBoostRepository
-                .findActiveBoostVacancyIds(now);
+                    // Сначала сортируем по boost
+                    if (v1HasBoost && !v2HasBoost) return -1;
+                    if (!v1HasBoost && v2HasBoost) return 1;
 
-        // Получаем все вакансии
-        List<Vacancy> vacancies = vacancyRepository.findAll(spec);
+                    // Если оба с boost или оба без boost, сортируем по расстоянию
+                    if (userLat != null && userLon != null) {
+                        Double dist1 = calculateDistanceForVacancy(v1, userLat, userLon);
+                        Double dist2 = calculateDistanceForVacancy(v2, userLat, userLon);
 
-        // Сортируем в памяти
-        vacancies = sortVacanciesByBoostOptimized(vacancies, boostedVacancyIds);
+                        // Если оба имеют координаты - сортируем по расстоянию
+                        if (dist1 != null && dist2 != null) {
+                            return Double.compare(dist1, dist2);
+                        }
 
-        boolean hasSubscription = accessService.canSearchJobs(telegramId);
+                        // Вакансии с координатами выше
+                        if (dist1 != null) return -1;
+                        if (dist2 != null) return 1;
+                    }
 
-        List<VacancyResponse> responses = new ArrayList<>();
-
-        if (hasSubscription) {
-            for (Vacancy vacancy : vacancies) {
-                responses.add(mapVacancyToResponse(vacancy));
-            }
-        } else {
-            Set<Long> freeAccessVacancyIds = getFreeAccessVacancyIdsOptimized(
-                    telegramId,
-                    request.getCityId(),
-                    request.getSphereId(),
-                    request.getCategoryId(),
-                    request.getSubcategoryId(),
-                    vacancies
-            );
-
-            for (Vacancy vacancy : vacancies) {
-                if (freeAccessVacancyIds.contains(vacancy.getId())) {
-                    responses.add(mapVacancyToResponse(vacancy));
-                } else {
-                    responses.add(mapVacancyToResponseWithoutSubs(vacancy));
-                }
-            }
-        }
-
-        SearchResultResponse<VacancyResponse> result = new SearchResultResponse<>();
-        result.setResults(responses);
-        result.setTotal(responses.size());
-
-        return result;
+                    // По умолчанию - по дате создания
+                    return v2.getCreatedAt().compareTo(v1.getCreatedAt());
+                })
+                .collect(Collectors.toList());
     }
 
     /**
-     * ОПТИМИЗИРОВАННАЯ версия - без N+1 запросов
+     * Вспомогательный метод для расчета расстояния до вакансии
      */
+    private Double calculateDistanceForVacancy(Vacancy vacancy, Double userLat, Double userLon) {
+        if (vacancy.getLatitude() != null && vacancy.getLongitude() != null) {
+            return locationService.calculateDistance(
+                    userLat, userLon,
+                    vacancy.getLatitude(), vacancy.getLongitude()
+            );
+        }
+        return null;
+    }
+
+    /**
+     * Маппинг вакансии с расстоянием
+     */
+    public VacancyResponse mapVacancyToResponse(Vacancy vacancy, Double userLat, Double userLon) {
+        VacancyResponse response = new VacancyResponse();
+        response.setPhone(vacancy.getPhone());
+
+        // Добавляем расстояние
+        if (userLat != null && userLon != null &&
+                vacancy.getLatitude() != null && vacancy.getLongitude() != null) {
+
+            double distance = locationService.calculateDistance(
+                    userLat, userLon,
+                    vacancy.getLatitude(), vacancy.getLongitude()
+            );
+            response.setDistanceKm(distance);
+        }
+
+        return getVacancyResponse(vacancy, response);
+    }
+
+    public VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy, Double userLat, Double userLon) {
+        VacancyResponse response = new VacancyResponse();
+
+        if (vacancy.getPhone() != null && !vacancy.getPhone().isEmpty()) {
+            String phone = vacancy.getPhone();
+            String maskedPhone = phone.length() > 6 ? phone.substring(0, 6) + " *** ***" : "*** *** ***";
+            response.setPhone(maskedPhone);
+        }
+
+        // Добавляем расстояние
+        if (userLat != null && userLon != null &&
+                vacancy.getLatitude() != null && vacancy.getLongitude() != null) {
+
+            double distance = locationService.calculateDistance(
+                    userLat, userLon,
+                    vacancy.getLatitude(), vacancy.getLongitude()
+            );
+            response.setDistanceKm(distance);
+        }
+
+        return getVacancyResponse(vacancy, response);
+    }
+
+    // Старые методы без location параметров для обратной совместимости
+    public VacancyResponse mapVacancyToResponse(Vacancy vacancy) {
+        return mapVacancyToResponse(vacancy, null, null);
+    }
+
+    public VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
+        return mapVacancyToResponseWithoutSubs(vacancy, null, null);
+    }
+
     private Set<Long> getFreeAccessResumeIdsOptimized(
             Long telegramId,
             Integer cityId,
@@ -169,7 +274,6 @@ public class BotSearchService {
         LocalDate today = LocalDate.now();
         String searchKey = buildSearchKey("RESUME", cityId, sphereId, categoryId, subcategoryId);
 
-        // Проверяем кэш одним запросом
         List<Long> cachedIds = freeAccessTrackingRepository
                 .findTodayFreeAccessIds(telegramId, searchKey, today);
 
@@ -177,13 +281,11 @@ public class BotSearchService {
             return new HashSet<>(cachedIds.subList(0, FREE_DAILY_LIMIT));
         }
 
-        // Выбираем первые 3 из уже отсортированного списка
         List<Long> selectedIds = sortedResumes.stream()
                 .limit(FREE_DAILY_LIMIT)
                 .map(Resume::getId)
                 .collect(Collectors.toList());
 
-        // Сохраняем батчем
         if (cachedIds.isEmpty() && !selectedIds.isEmpty()) {
             freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
         }
@@ -221,9 +323,6 @@ public class BotSearchService {
         return new HashSet<>(selectedIds);
     }
 
-    /**
-     * ОПТИМИЗИРОВАННАЯ сортировка - без N+1 запросов
-     */
     private List<Resume> sortResumesByBoostOptimized(List<Resume> resumes, Set<Long> boostedIds) {
         return resumes.stream()
                 .sorted((r1, r2) -> {
@@ -234,20 +333,6 @@ public class BotSearchService {
                     if (!r1HasBoost && r2HasBoost) return 1;
 
                     return r2.getCreatedAt().compareTo(r1.getCreatedAt());
-                })
-                .collect(Collectors.toList());
-    }
-
-    private List<Vacancy> sortVacanciesByBoostOptimized(List<Vacancy> vacancies, Set<Long> boostedIds) {
-        return vacancies.stream()
-                .sorted((v1, v2) -> {
-                    boolean v1HasBoost = boostedIds.contains(v1.getId());
-                    boolean v2HasBoost = boostedIds.contains(v2.getId());
-
-                    if (v1HasBoost && !v2HasBoost) return -1;
-                    if (!v1HasBoost && v2HasBoost) return 1;
-
-                    return v2.getCreatedAt().compareTo(v1.getCreatedAt());
                 })
                 .collect(Collectors.toList());
     }
@@ -313,7 +398,6 @@ public class BotSearchService {
         };
     }
 
-    // ... остальные методы (trackVacancyView, mappers и т.д.) остаются без изменений
     @Transactional
     public void trackVacancyView(Long vacancyId) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
@@ -427,23 +511,6 @@ public class BotSearchService {
         response.setMedia(mediaList);
 
         return response;
-    }
-
-    public VacancyResponse mapVacancyToResponse(Vacancy vacancy) {
-        VacancyResponse response = new VacancyResponse();
-        response.setPhone(vacancy.getPhone());
-        return getVacancyResponse(vacancy, response);
-    }
-
-    public VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
-        VacancyResponse response = new VacancyResponse();
-
-        if (vacancy.getPhone() != null && !vacancy.getPhone().isEmpty()) {
-            String phone = vacancy.getPhone();
-            String maskedPhone = phone.length() > 6 ? phone.substring(0, 6) + " *** ***" : "*** *** ***";
-            response.setPhone(maskedPhone);
-        }
-        return getVacancyResponse(vacancy, response);
     }
 
     @Transactional(readOnly = true)

@@ -12,7 +12,4 @@ public interface ResumeInvitationRepository extends JpaRepository<ResumeInvitati
 
     List<ResumeInvitation> findByResumeIdOrderByCreatedAtDesc(Long resumeId);
 
-    List<ResumeInvitation> findByEmployerTelegramIdOrderByCreatedAtDesc(Long telegramId);
-
-    List<ResumeInvitation> findByVacancyIdOrderByCreatedAtDesc(Long vacancyId);
 }

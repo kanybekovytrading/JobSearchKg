@@ -11,8 +11,6 @@ import java.util.List;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Integer> {
 
-    List<Category> findByIsActive(Boolean isActive);
-
     @Query("SELECT c FROM Category c WHERE c.sphere.id = :sphereId AND c.isActive = :isActive")
     List<Category> findBySphereIdAndIsActive(
             @Param("sphereId") Integer sphereId,

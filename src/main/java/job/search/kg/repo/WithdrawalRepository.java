@@ -18,11 +18,6 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
     Optional<Withdrawal> findByTransactionId(String transactionId);
 
     /**
-     * Поиск вывода по Finik transactionId
-     */
-    Optional<Withdrawal> findByFinikTransactionId(String finikTransactionId);
-
-    /**
      * История выводов пользователя
      */
     List<Withdrawal> findByUserTelegramIdOrderByCreatedAtDesc(Long telegramId);
