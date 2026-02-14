@@ -12,6 +12,7 @@ import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import job.search.kg.service.LocationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BotSearchService {
@@ -63,6 +65,7 @@ public class BotSearchService {
                 .findActiveBoostVacancyIds(now);
 
         List<Vacancy> vacancies = vacancyRepository.findAll(spec);
+        log.info("users lat{} long {}", userLatitude, userLongitude);
 
         // Сортируем с учетом boost и расстояния
         vacancies = sortVacanciesByBoostAndDistance(
