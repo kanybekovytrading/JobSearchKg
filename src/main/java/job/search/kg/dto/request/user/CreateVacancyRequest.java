@@ -1,6 +1,4 @@
 package job.search.kg.dto.request.user;
-
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotNull;
 import job.search.kg.entity.Vacancy;
 import lombok.Data;
@@ -28,5 +26,7 @@ public class CreateVacancyRequest {
     private String schedule;
     @NotNull
     private Integer experienceInYear;
+    private Double latitude;
+    private Double longitude;
 
 }

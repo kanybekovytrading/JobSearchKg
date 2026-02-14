@@ -37,4 +37,6 @@ public class VacancyResponse {
     private Vacancy.GenderPreference preferredGender;
     private List<MediaResponse> media;
     private Double distanceKm;    // 7.5
+    private Double latitude;
+    private Double longitude;
 }

@@ -570,6 +570,8 @@ public class BotSearchService {
         response.setCategoryName(vacancy.getCategory().getNameRu());
         response.setSubcategoryName(vacancy.getSubcategory().getNameRu());
         response.setCreatedAt(vacancy.getCreatedAt());
+        response.setLatitude(vacancy.getLatitude());
+        response.setLongitude(vacancy.getLongitude());
 
         if (response.getPhone() != null && !response.getPhone().contains("***")) {
             response.setTelegramUsername(vacancy.getUser().getUsername());
