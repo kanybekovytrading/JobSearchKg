@@ -13,20 +13,20 @@ import java.util.List;
 
 @Configuration
 public class OpenApiConfig {
-        @Bean
-        public OpenAPI openAPI() {
+    @Bean
+    public OpenAPI openAPI() {
                 Server server = new Server();
-                server.setUrl("https://jobsearchkg-production.up.railway.app");
+                server.setUrl("https://workkg.com");
                 server.setDescription("API Server");
 
-                return new OpenAPI().addSecurityItem(new SecurityRequirement()
+        return new OpenAPI().addSecurityItem(new SecurityRequirement()
                         .addList("bearerAuth"))
-                        .servers(List.of(server))
-                        .components(new Components()
-                                .addSecuritySchemes("bearerAuth", new SecurityScheme()
-                                        .name("Authorization")
-                                        .type(SecurityScheme.Type.HTTP)
-                                        .scheme("bearer")
-                                        .bearerFormat("JWT")));
-}
+                   .servers(List.of(server))
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth", new SecurityScheme()
+                                .name("Authorization")
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")));
+    }
 }
