@@ -57,17 +57,14 @@ public class BotSubscriptionService {
     }
 
     @Transactional
-    public Subscription createSubscription(Long telegramId, Subscription.PlanType planType, String paymentId) {
+    public void createSubscription(Long telegramId, Subscription.PlanType planType, String paymentId) {
         User user = userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Optional<Subscription> existingSubscription = subscriptionRepository
                 .findActiveSubscription(user, LocalDateTime.now());
 
-        if (existingSubscription.isPresent()) {
-            throw new IllegalStateException("У вас уже есть активная подписка до " +
-                    existingSubscription.get().getEndDate());
-        }
+        existingSubscription.ifPresent(subscriptionRepository::delete);
         LocalDateTime startDate = LocalDateTime.now();
         LocalDateTime endDate = calculateEndDate(startDate, planType);
 
@@ -79,7 +76,7 @@ public class BotSubscriptionService {
         subscription.setIsActive(true);
         subscription.setPaymentId(paymentId);
 
-        return subscriptionRepository.save(subscription);
+        subscriptionRepository.save(subscription);
     }
 
     private LocalDateTime calculateEndDate(LocalDateTime startDate, Subscription.PlanType planType) {
