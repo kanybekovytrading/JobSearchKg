@@ -153,6 +153,6 @@ public class FinikPaymentService {
 
     private String getWebhookUrl() {
         // TODO: Замените на ваш реальный публичный URL
-        return "https://jobsearchkg-production.up.railway.app//api/webhooks/finik/payment";
+        return "https://workkg.com/api/webhooks/finik/payment";
     }
 }
