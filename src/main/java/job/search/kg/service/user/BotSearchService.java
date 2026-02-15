@@ -53,6 +53,10 @@ public class BotSearchService {
             Double userLatitude,
             Double userLongitude) {
 
+        log.info("Starting vacancy search for user: {}, cityId: {}, sphereId: {}, categoryId: {}, subcategoryId: {}",
+                telegramId, request.getCityId(), request.getSphereId(),
+                request.getCategoryId(), request.getSubcategoryId());
+
         Specification<Vacancy> spec = buildVacancySpecification(
                 request.getCityId(),
                 request.getSphereId(),
@@ -66,6 +70,8 @@ public class BotSearchService {
 
         List<Vacancy> vacancies = vacancyRepository.findAll(spec);
         log.info("user's latitude {} longitude {}", userLatitude, userLongitude);
+        log.info("Found {} total vacancies matching specification", vacancies.size());
+        log.info("User's location - latitude: {}, longitude: {}", userLatitude, userLongitude);
 
         // Сортируем с учетом boost и расстояния
         vacancies = sortVacanciesByBoostAndDistance(
@@ -74,16 +80,25 @@ public class BotSearchService {
                 userLatitude,
                 userLongitude
         );
+        log.info("Found {} active boosted vacancies", boostedVacancyIds.size());
 
         boolean hasSubscription = accessService.canSearchJobs(telegramId);
+        log.info("User {} subscription status: {}", telegramId, hasSubscription ? "active" : "inactive");
+
 
         List<VacancyResponse> responses = new ArrayList<>();
 
         if (hasSubscription) {
+            log.info("Processing vacancies for subscribed user");
+
             for (Vacancy vacancy : vacancies) {
                 responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude));
             }
+            log.info("Mapped {} vacancies with full access", responses.size());
+
         } else {
+            log.info("Processing vacancies for non-subscribed user");
+
             Set<Long> freeAccessVacancyIds = getFreeAccessVacancyIdsOptimized(
                     telegramId,
                     request.getCityId(),
@@ -92,6 +107,8 @@ public class BotSearchService {
                     request.getSubcategoryId(),
                     vacancies
             );
+            log.info("User has free access to {} vacancies", freeAccessVacancyIds.size());
+
 
             for (Vacancy vacancy : vacancies) {
                 if (freeAccessVacancyIds.contains(vacancy.getId())) {
@@ -105,6 +122,7 @@ public class BotSearchService {
         SearchResultResponse<VacancyResponse> result = new SearchResultResponse<>();
         result.setResults(responses);
         result.setTotal(responses.size());
+        log.info("Vacancy search completed for user: {}. Returning {} results", telegramId, result.getTotal());
 
         return result;
     }
