@@ -65,7 +65,7 @@ public class BotSearchService {
                 .findActiveBoostVacancyIds(now);
 
         List<Vacancy> vacancies = vacancyRepository.findAll(spec);
-        log.info("users lat{} long {}", userLatitude, userLongitude);
+        log.info("user's latitude {} longitude {}", userLatitude, userLongitude);
 
         // Сортируем с учетом boost и расстояния
         vacancies = sortVacanciesByBoostAndDistance(
