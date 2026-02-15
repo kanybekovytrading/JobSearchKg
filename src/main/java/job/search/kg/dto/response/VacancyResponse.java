@@ -26,6 +26,10 @@ public class VacancyResponse {
     private String cityName;
     private String categoryName;
     private String subcategoryName;
+    private Integer cityId;
+    private Integer sphereId;
+    private Integer categoryId;
+    private Integer subcategoryId;
     private Boolean isActive;
     private String telegramUsername;
     private LocalDateTime createdAt;

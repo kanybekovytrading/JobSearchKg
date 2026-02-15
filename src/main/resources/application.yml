@@ -60,6 +60,8 @@ spring:
 
   jpa:
     hibernate:
+      JDBC:
+        time_zone: Asia/Bishkek
       ddl-auto: update
     show-sql: false
     properties:

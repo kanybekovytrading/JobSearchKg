@@ -6,9 +6,12 @@ import job.search.kg.dto.response.VacancyResponse;
 import job.search.kg.dto.response.user.ResumeResponse;
 import job.search.kg.dto.response.user.SearchResultResponse;
 import job.search.kg.service.user.BotSearchService;
+import job.search.kg.service.user.RecommendationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/bot")
@@ -16,6 +19,21 @@ import org.springframework.web.bind.annotation.*;
 public class BotSearchController {
 
     private final BotSearchService botSearchService;
+    private final RecommendationService recommendationService;
+
+    @Operation(
+            summary = "Получить рекомендованные вакансии",
+            description = "Рекомендации вакансий на основе резюме пользователя. " +
+                    "Если у пользователя есть резюме, вакансии фильтруются по подкатегориям и городу из резюме. " +
+                    "Алгоритм учитывает: свежесть (25%), вовлеченность CTR (20%), " +
+                    "совпадение города (25%), совпадение подкатегории (30%), активный Boost (20%)"
+    )
+    @GetMapping("/recommended/vacancies")
+    public ResponseEntity<List<VacancyResponse>> getRecommendedVacancies(
+            @RequestParam Long telegramId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(recommendationService.getRecommendedVacancies(telegramId, limit));
+    }
 
     @Operation(
             summary = "Поиск резюме",

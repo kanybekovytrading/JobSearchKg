@@ -69,9 +69,7 @@ public class BotSearchService {
                 .findActiveBoostVacancyIds(now);
 
         List<Vacancy> vacancies = vacancyRepository.findAll(spec);
-        log.info("user's latitude {} longitude {}", userLatitude, userLongitude);
         log.info("Found {} total vacancies matching specification", vacancies.size());
-        log.info("User's location - latitude: {}, longitude: {}", userLatitude, userLongitude);
 
         // Сортируем с учетом boost и расстояния
         vacancies = sortVacanciesByBoostAndDistance(
@@ -84,7 +82,6 @@ public class BotSearchService {
 
         boolean hasSubscription = accessService.canSearchJobs(telegramId);
         log.info("User {} subscription status: {}", telegramId, hasSubscription ? "active" : "inactive");
-
 
         List<VacancyResponse> responses = new ArrayList<>();
 
@@ -99,21 +96,45 @@ public class BotSearchService {
         } else {
             log.info("Processing vacancies for non-subscribed user");
 
+            // Разделяем вакансии пользователя и чужие
+            List<Vacancy> userOwnVacancies = new ArrayList<>();
+            List<Vacancy> otherVacancies = new ArrayList<>();
+
+            for (Vacancy vacancy : vacancies) {
+                if (vacancy.getUser().getTelegramId().equals(telegramId)) {
+                    userOwnVacancies.add(vacancy);
+                } else {
+                    otherVacancies.add(vacancy);
+                }
+            }
+            log.info("User has {} own vacancies, {} other vacancies", userOwnVacancies.size(), otherVacancies.size());
+
+            // Получаем ID бесплатных вакансий (только среди чужих)
             Set<Long> freeAccessVacancyIds = getFreeAccessVacancyIdsOptimized(
                     telegramId,
                     request.getCityId(),
                     request.getSphereId(),
                     request.getCategoryId(),
                     request.getSubcategoryId(),
-                    vacancies
+                    otherVacancies // передаем только чужие вакансии
             );
             log.info("User has free access to {} vacancies", freeAccessVacancyIds.size());
 
+            // 1. Сначала добавляем вакансии пользователя (всегда открыты)
+            for (Vacancy vacancy : userOwnVacancies) {
+                responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude));
+            }
 
-            for (Vacancy vacancy : vacancies) {
+            // 2. Затем добавляем бесплатные чужие вакансии
+            for (Vacancy vacancy : otherVacancies) {
                 if (freeAccessVacancyIds.contains(vacancy.getId())) {
                     responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude));
-                } else {
+                }
+            }
+
+            // 3. В конце добавляем закрытые вакансии
+            for (Vacancy vacancy : otherVacancies) {
+                if (!freeAccessVacancyIds.contains(vacancy.getId())) {
                     responses.add(mapVacancyToResponseWithoutSubs(vacancy, userLatitude, userLongitude));
                 }
             }
@@ -154,19 +175,43 @@ public class BotSearchService {
                 responses.add(mapResumeToResponse(resume));
             }
         } else {
+            // Разделяем резюме пользователя и чужие
+            List<Resume> userOwnResumes = new ArrayList<>();
+            List<Resume> otherResumes = new ArrayList<>();
+
+            for (Resume resume : resumes) {
+                if (resume.getUser().getTelegramId().equals(telegramId)) {
+                    userOwnResumes.add(resume);
+                } else {
+                    otherResumes.add(resume);
+                }
+            }
+
+            // Получаем ID бесплатных резюме (только среди чужих)
             Set<Long> freeAccessResumeIds = getFreeAccessResumeIdsOptimized(
                     telegramId,
                     request.getCityId(),
                     request.getSphereId(),
                     request.getCategoryId(),
                     request.getSubcategoryId(),
-                    resumes
+                    otherResumes // передаем только чужие резюме
             );
 
-            for (Resume resume : resumes) {
+            // 1. Сначала резюме пользователя (всегда открыты)
+            for (Resume resume : userOwnResumes) {
+                responses.add(mapResumeToResponse(resume));
+            }
+
+            // 2. Затем бесплатные чужие резюме
+            for (Resume resume : otherResumes) {
                 if (freeAccessResumeIds.contains(resume.getId())) {
                     responses.add(mapResumeToResponse(resume));
-                } else {
+                }
+            }
+
+            // 3. В конце закрытые резюме
+            for (Resume resume : otherResumes) {
+                if (!freeAccessResumeIds.contains(resume.getId())) {
                     responses.add(mapResumeToResponseWithoutSubs(resume));
                 }
             }
@@ -604,6 +649,11 @@ public class BotSearchService {
         response.setMinAge(vacancy.getMinAge());
         response.setPreferredGender(vacancy.getPreferredGender());
         response.setSchedule(vacancy.getSchedule());
+        response.setCityId(vacancy.getCity().getId());
+        response.setSphereId(vacancy.getCategory().getSphere().getId());
+        response.setCategoryId(vacancy.getCategory().getId());
+        response.setSubcategoryId(vacancy.getSubcategory().getId());
+
 
         List<MediaResponse> mediaList = vacancyMediaRepository
                 .findByVacancyIdOrderByDisplayOrderAsc(vacancy.getId())

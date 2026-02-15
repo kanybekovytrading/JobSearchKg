@@ -31,4 +31,6 @@ public interface ResumeRepository extends JpaRepository<Resume, Long>, JpaSpecif
             @Param("subcategoryId") Integer subcategoryId,
             @Param("cityId") Integer cityId
     );
+
+    List<Resume> findByUserAndIsActiveTrue(User user);
 }

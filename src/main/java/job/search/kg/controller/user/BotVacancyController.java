@@ -71,11 +71,11 @@ public class BotVacancyController {
 
     @GetMapping("/{vacancyId}/{telegramId}")
     public ResponseEntity<job.search.kg.dto.response.VacancyResponse> getVacancyById(
-            @PathVariable Long vacancyId,  @PathVariable Long telegramId) {
+            @PathVariable Long vacancyId,  @PathVariable Long telegramId, @RequestParam boolean isProfile) {
         Vacancy vacancy = adminVacancyService.getVacancyById(vacancyId);
        List<MediaResponse> mediaResponses = botVacancyService.getVacancyMedia(vacancyId);
         VacancyResponse response;
-        if (!botAccessService.canSearchEmployees(telegramId)) {
+        if (!isProfile && !botAccessService.canSearchEmployees(telegramId)) {
           response =  botSearchService.mapVacancyToResponseWithoutSubs(vacancy);
         }else {
            response =  botSearchService.mapVacancyToResponse(vacancy);
