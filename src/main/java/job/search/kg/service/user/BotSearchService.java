@@ -89,7 +89,8 @@ public class BotSearchService {
             log.info("Processing vacancies for subscribed user");
 
             for (Vacancy vacancy : vacancies) {
-                responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude));
+                boolean isBoosted = boostedVacancyIds.contains(vacancy.getId());
+                responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude, false, isBoosted));
             }
             log.info("Mapped {} vacancies with full access", responses.size());
 
@@ -122,20 +123,23 @@ public class BotSearchService {
 
             // 1. Сначала добавляем вакансии пользователя (всегда открыты)
             for (Vacancy vacancy : userOwnVacancies) {
-                responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude));
+                boolean isBoosted = boostedVacancyIds.contains(vacancy.getId());
+                responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude, false, isBoosted));
             }
 
             // 2. Затем добавляем бесплатные чужие вакансии
             for (Vacancy vacancy : otherVacancies) {
                 if (freeAccessVacancyIds.contains(vacancy.getId())) {
-                    responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude));
+                    boolean isBoosted = boostedVacancyIds.contains(vacancy.getId());
+                    responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude, true, isBoosted));
                 }
             }
 
             // 3. В конце добавляем закрытые вакансии
             for (Vacancy vacancy : otherVacancies) {
                 if (!freeAccessVacancyIds.contains(vacancy.getId())) {
-                    responses.add(mapVacancyToResponseWithoutSubs(vacancy, userLatitude, userLongitude));
+                    boolean isBoosted = boostedVacancyIds.contains(vacancy.getId());
+                    responses.add(mapVacancyToResponseWithoutSubs(vacancy, userLatitude, userLongitude, false, isBoosted));
                 }
             }
         }
@@ -172,7 +176,8 @@ public class BotSearchService {
 
         if (hasSubscription) {
             for (Resume resume : resumes) {
-                responses.add(mapResumeToResponse(resume));
+                boolean isBoosted = boostedResumeIds.contains(resume.getId());
+                responses.add(mapResumeToResponse(resume, false, isBoosted));
             }
         } else {
             // Разделяем резюме пользователя и чужие
@@ -199,20 +204,23 @@ public class BotSearchService {
 
             // 1. Сначала резюме пользователя (всегда открыты)
             for (Resume resume : userOwnResumes) {
-                responses.add(mapResumeToResponse(resume));
+                boolean isBoosted = boostedResumeIds.contains(resume.getId());
+                responses.add(mapResumeToResponse(resume, false, isBoosted));
             }
 
             // 2. Затем бесплатные чужие резюме
             for (Resume resume : otherResumes) {
                 if (freeAccessResumeIds.contains(resume.getId())) {
-                    responses.add(mapResumeToResponse(resume));
+                    boolean isBoosted = boostedResumeIds.contains(resume.getId());
+                    responses.add(mapResumeToResponse(resume, true, isBoosted));
                 }
             }
 
             // 3. В конце закрытые резюме
             for (Resume resume : otherResumes) {
                 if (!freeAccessResumeIds.contains(resume.getId())) {
-                    responses.add(mapResumeToResponseWithoutSubs(resume));
+                    boolean isBoosted = boostedResumeIds.contains(resume.getId());
+                    responses.add(mapResumeToResponseWithoutSubs(resume, false, isBoosted));
                 }
             }
         }
@@ -279,7 +287,7 @@ public class BotSearchService {
     /**
      * Маппинг вакансии с расстоянием
      */
-    public VacancyResponse mapVacancyToResponse(Vacancy vacancy, Double userLat, Double userLon) {
+    public VacancyResponse mapVacancyToResponse(Vacancy vacancy, Double userLat, Double userLon, boolean isfree, boolean isBoosted) {
         VacancyResponse response = new VacancyResponse();
         response.setPhone(vacancy.getPhone());
 
@@ -294,10 +302,10 @@ public class BotSearchService {
             response.setDistanceKm(distance);
         }
 
-        return getVacancyResponse(vacancy, response);
+        return getVacancyResponse(vacancy, response, isfree, isBoosted);
     }
 
-    public VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy, Double userLat, Double userLon) {
+    public VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy, Double userLat, Double userLon, boolean isFree, boolean isBoosted) {
         VacancyResponse response = new VacancyResponse();
 
         if (vacancy.getPhone() != null && !vacancy.getPhone().isEmpty()) {
@@ -317,16 +325,16 @@ public class BotSearchService {
             response.setDistanceKm(distance);
         }
 
-        return getVacancyResponse(vacancy, response);
+        return getVacancyResponse(vacancy, response, isFree, isBoosted);
     }
 
     // Старые методы без location параметров для обратной совместимости
     public VacancyResponse mapVacancyToResponse(Vacancy vacancy) {
-        return mapVacancyToResponse(vacancy, null, null);
+        return mapVacancyToResponse(vacancy, null, null, false, false);
     }
 
     public VacancyResponse mapVacancyToResponseWithoutSubs(Vacancy vacancy) {
-        return mapVacancyToResponseWithoutSubs(vacancy, null, null);
+        return mapVacancyToResponseWithoutSubs(vacancy, null, null, false, false);
     }
 
     private Set<Long> getFreeAccessResumeIdsOptimized(
@@ -526,7 +534,7 @@ public class BotSearchService {
         resumeStatisticsRepository.save(stats);
     }
 
-    public ResumeResponse mapResumeToResponse(Resume resume) {
+    public ResumeResponse mapResumeToResponse(Resume resume, boolean isFree, boolean isBoosted) {
         ResumeResponse response = new ResumeResponse();
         response.setId(resume.getId());
         response.setName(resume.getName());
@@ -539,6 +547,8 @@ public class BotSearchService {
         response.setDescription(resume.getDescription());
         response.setTelegramUsername(resume.getUser().getUsername());
         response.setPhone(resume.getUser().getPhone());
+        response.setFree(isFree);
+        response.setBoosted(isBoosted);
 
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
@@ -550,7 +560,7 @@ public class BotSearchService {
         return response;
     }
 
-    public ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
+    public ResumeResponse mapResumeToResponseWithoutSubs(Resume resume, boolean isFree, boolean isBoosted) {
         ResumeResponse response = new ResumeResponse();
 
         if (resume.getUser().getPhone() != null && !resume.getUser().getPhone().isEmpty()) {
@@ -568,6 +578,8 @@ public class BotSearchService {
         response.setSubcategoryName(resume.getSubcategory().getNameRu());
         response.setExperience(resume.getExperience());
         response.setDescription(resume.getDescription());
+        response.setFree(isFree);
+        response.setBoosted(isBoosted);
 
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
@@ -577,6 +589,15 @@ public class BotSearchService {
         response.setMedia(mediaList);
 
         return response;
+    }
+
+    // Старые методы без параметров для обратной совместимости
+    public ResumeResponse mapResumeToResponse(Resume resume) {
+        return mapResumeToResponse(resume, false, false);
+    }
+
+    public ResumeResponse mapResumeToResponseWithoutSubs(Resume resume) {
+        return mapResumeToResponseWithoutSubs(resume, false, false);
     }
 
     @Transactional(readOnly = true)
@@ -626,7 +647,7 @@ public class BotSearchService {
     }
 
     @NonNull
-    private VacancyResponse getVacancyResponse(Vacancy vacancy, VacancyResponse response) {
+    private VacancyResponse getVacancyResponse(Vacancy vacancy, VacancyResponse response, boolean isFree, boolean isBoosted) {
         response.setId(vacancy.getId());
         response.setTitle(vacancy.getTitle());
         response.setDescription(vacancy.getDescription());
@@ -653,6 +674,8 @@ public class BotSearchService {
         response.setSphereId(vacancy.getCategory().getSphere().getId());
         response.setCategoryId(vacancy.getCategory().getId());
         response.setSubcategoryId(vacancy.getSubcategory().getId());
+        response.setFree(isFree);
+        response.setBoosted(isBoosted);
 
 
         List<MediaResponse> mediaList = vacancyMediaRepository

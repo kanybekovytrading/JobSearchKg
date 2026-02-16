@@ -23,4 +23,6 @@ public class ResumeResponse {
     private LocalDateTime createdAt;
     private String phone;
     private List<MediaResponse> media;
+    private boolean isFree;
+    private boolean isBoosted;
 }

@@ -43,4 +43,6 @@ public class VacancyResponse {
     private Double distanceKm;    // 7.5
     private Double latitude;
     private Double longitude;
+    private boolean isFree;
+    private boolean isBoosted;
 }
