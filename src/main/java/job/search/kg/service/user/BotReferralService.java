@@ -61,7 +61,7 @@ public class BotReferralService {
         User user = userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        String referralLink = "https://t.me/fastjob_kg_bot?start=" + user.getReferralCode();
+        String referralLink = "https://t.me/Workkg_bot?start=" + user.getReferralCode();
 
         // Подсчёт приглашённых
         Long referralsCount = userRepository.countByReferrer(user);

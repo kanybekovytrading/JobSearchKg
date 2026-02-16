@@ -34,7 +34,7 @@ public class User {
     @Column(name = "last_name")
     private String lastName;
 
-    @Column(name = "phone", nullable = false, length = 20)
+    @Column(name = "phone", length = 20)
     private String phone;
 
     @Enumerated(EnumType.STRING)
