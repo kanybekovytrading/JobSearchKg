@@ -116,7 +116,7 @@ management:
 
 telegram:
   bot:
-    token: 8288728857:AAFvrR2fDp9y1WQg-lv1CvCAO3A41N6rlBk
+    token: 7984796500:AAEAwgmhyoKVGfdFlF5thAMVhHbpmR1FMKA
 
 claude:
   api-key: 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
