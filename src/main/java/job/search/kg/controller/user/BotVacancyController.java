@@ -7,6 +7,7 @@ import job.search.kg.dto.response.MediaResponse;
 import job.search.kg.dto.response.VacancyResponse;
 import job.search.kg.dto.response.user.VacancyStatsResponse;
 import job.search.kg.entity.Vacancy;
+import job.search.kg.repo.FreeAccessTrackingRepository;
 import job.search.kg.service.admin.AdminVacancyService;
 import job.search.kg.service.user.BotAccessService;
 import job.search.kg.service.user.BotSearchService;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -30,6 +32,7 @@ public class BotVacancyController {
     private final BotSearchService botSearchService;
     private final BotAccessService botAccessService;
     private final BotVacancyService vacancyService;
+    private final FreeAccessTrackingRepository freeAccessTrackingRepository;
 
 
     @PostMapping
@@ -70,18 +73,50 @@ public class BotVacancyController {
     }
 
     @GetMapping("/{vacancyId}/{telegramId}")
-    public ResponseEntity<job.search.kg.dto.response.VacancyResponse> getVacancyById(
-            @PathVariable Long vacancyId,  @PathVariable Long telegramId, @RequestParam boolean isProfile) {
+    public ResponseEntity<VacancyResponse> getVacancyById(
+            @PathVariable Long vacancyId,
+            @PathVariable Long telegramId,
+            @RequestParam boolean isProfile) {
+
         Vacancy vacancy = adminVacancyService.getVacancyById(vacancyId);
-       List<MediaResponse> mediaResponses = botVacancyService.getVacancyMedia(vacancyId);
+        List<MediaResponse> mediaResponses = botVacancyService.getVacancyMedia(vacancyId);
+
         VacancyResponse response;
-        if (!isProfile && !botAccessService.canSearchEmployees(telegramId)) {
-          response =  botSearchService.mapVacancyToResponseWithoutSubs(vacancy);
-        }else {
-           response =  botSearchService.mapVacancyToResponse(vacancy);
+        // Если это не профиль и у пользователя нет подписки
+        if (!isProfile && !botAccessService.canSearchJobs(telegramId)) {
+
+            // Проверяем, является ли эта вакансия одной из бесплатных для пользователя
+            LocalDate today = LocalDate.now();
+
+            // Нужно определить searchKey - получаем параметры вакансии
+            String searchKey = buildSearchKeyForVacancy(vacancy);
+
+            List<Long> freeAccessIds = freeAccessTrackingRepository
+                    .findTodayFreeAccessIds(telegramId, searchKey, today);
+
+            // Проверяем, есть ли эта вакансия в списке бесплатных
+            if (freeAccessIds.contains(vacancyId)) {
+                response = botSearchService.mapVacancyToResponse(vacancy, null, null, true, false);
+            } else {
+                response = botSearchService.mapVacancyToResponseWithoutSubs(vacancy, null, null, false, false);
+            }
+        } else {
+            // Полный доступ (профиль или есть подписка)
+            response = botSearchService.mapVacancyToResponse(vacancy, null, null, false, false);
         }
+
         response.setMedia(mediaResponses);
         return ResponseEntity.ok(response);
+    }
+
+    // Вспомогательный метод для построения searchKey
+    private String buildSearchKeyForVacancy(Vacancy vacancy) {
+        return String.format("VACANCY_C%d_S%d_CAT%d_SUB%d",
+                vacancy.getCity().getId(),
+                vacancy.getCategory().getSphere().getId(),
+                vacancy.getCategory().getId(),
+                vacancy.getSubcategory().getId()
+        );
     }
 
     @PutMapping("/{vacancyId}/update/{telegramId}")
