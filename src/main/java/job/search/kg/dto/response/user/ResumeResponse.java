@@ -25,4 +25,8 @@ public class ResumeResponse {
     private List<MediaResponse> media;
     private boolean isFree;
     private boolean isBoosted;
+    private Integer cityId;
+    private Integer sphereId;
+    private Integer categoryId;
+    private Integer subcategoryId;
 }

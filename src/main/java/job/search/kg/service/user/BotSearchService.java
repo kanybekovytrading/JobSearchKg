@@ -337,35 +337,6 @@ public class BotSearchService {
         return mapVacancyToResponseWithoutSubs(vacancy, null, null, false, false);
     }
 
-    private Set<Long> getFreeAccessResumeIdsOptimized(
-            Long telegramId,
-            Integer cityId,
-            Integer sphereId,
-            Integer categoryId,
-            Integer subcategoryId,
-            List<Resume> sortedResumes) {
-
-        LocalDate today = LocalDate.now();
-        String searchKey = buildSearchKey("RESUME", cityId, sphereId, categoryId, subcategoryId);
-
-        List<Long> cachedIds = freeAccessTrackingRepository
-                .findTodayFreeAccessIds(telegramId, searchKey, today);
-
-        if (!cachedIds.isEmpty() && cachedIds.size() >= FREE_DAILY_LIMIT) {
-            return new HashSet<>(cachedIds.subList(0, FREE_DAILY_LIMIT));
-        }
-
-        List<Long> selectedIds = sortedResumes.stream()
-                .limit(FREE_DAILY_LIMIT)
-                .map(Resume::getId)
-                .collect(Collectors.toList());
-
-        if (cachedIds.isEmpty() && !selectedIds.isEmpty()) {
-            freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
-        }
-
-        return new HashSet<>(selectedIds);
-    }
 
     protected Set<Long> getFreeAccessVacancyIdsOptimized(
             Long telegramId,
@@ -390,7 +361,37 @@ public class BotSearchService {
                 .map(Vacancy::getId)
                 .collect(Collectors.toList());
 
-        if (cachedIds.isEmpty() && !selectedIds.isEmpty()) {
+        if (!selectedIds.isEmpty()) {
+            freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
+        }
+
+        return new HashSet<>(selectedIds);
+    }
+
+    private Set<Long> getFreeAccessResumeIdsOptimized(
+            Long telegramId,
+            Integer cityId,
+            Integer sphereId,
+            Integer categoryId,
+            Integer subcategoryId,
+            List<Resume> sortedResumes) {
+
+        LocalDate today = LocalDate.now();
+        String searchKey = buildSearchKey("RESUME", cityId, sphereId, categoryId, subcategoryId);
+
+        List<Long> cachedIds = freeAccessTrackingRepository
+                .findTodayFreeAccessIds(telegramId, searchKey, today);
+
+        if (!cachedIds.isEmpty() && cachedIds.size() >= FREE_DAILY_LIMIT) {
+            return new HashSet<>(cachedIds.subList(0, FREE_DAILY_LIMIT));
+        }
+
+        List<Long> selectedIds = sortedResumes.stream()
+                .limit(FREE_DAILY_LIMIT)
+                .map(Resume::getId)
+                .collect(Collectors.toList());
+
+        if (!selectedIds.isEmpty()) {
             freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
         }
 
@@ -547,6 +548,10 @@ public class BotSearchService {
         response.setDescription(resume.getDescription());
         response.setTelegramUsername(resume.getUser().getUsername());
         response.setPhone(resume.getUser().getPhone());
+        response.setCityId(resume.getCity().getId());
+        response.setSphereId(resume.getCategory().getSphere().getId());
+        response.setCategoryId(resume.getCategory().getId());
+        response.setSubcategoryId(resume.getSubcategory().getId());
         response.setFree(isFree);
         response.setBoosted(isBoosted);
 
@@ -580,6 +585,10 @@ public class BotSearchService {
         response.setDescription(resume.getDescription());
         response.setFree(isFree);
         response.setBoosted(isBoosted);
+        response.setCityId(resume.getCity().getId());
+        response.setSphereId(resume.getCategory().getSphere().getId());
+        response.setCategoryId(resume.getCategory().getId());
+        response.setSubcategoryId(resume.getSubcategory().getId());
 
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())

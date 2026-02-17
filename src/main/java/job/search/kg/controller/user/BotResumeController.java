@@ -7,6 +7,7 @@ import job.search.kg.dto.response.MediaResponse;
 import job.search.kg.dto.response.user.ResumeResponse;
 import job.search.kg.dto.response.user.ResumeStatsResponse;
 import job.search.kg.entity.Resume;
+import job.search.kg.repo.FreeAccessTrackingRepository;
 import job.search.kg.service.admin.AdminResumeService;
 import job.search.kg.service.user.BotAccessService;
 import job.search.kg.service.user.BotResumeService;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -30,6 +32,7 @@ public class BotResumeController {
     private final BotSearchService botSearchService;
     private final BotAccessService botAccessService;
     private final BotResumeService resumeService;
+    private final FreeAccessTrackingRepository freeAccessTrackingRepository;
 
 
     @PostMapping
@@ -71,17 +74,46 @@ public class BotResumeController {
 
     @GetMapping("/{resumeId}/{telegramId}")
     public ResponseEntity<ResumeResponse> getResumeById(
-            @PathVariable Long resumeId, @PathVariable Long telegramId) {
+            @PathVariable Long resumeId,
+            @PathVariable Long telegramId,
+            @RequestParam boolean isProfile) {
+
         Resume resume = adminResumeService.getResumeById(resumeId);
         List<MediaResponse> mediaResponses = botResumeService.getResumeMedia(resumeId);
+
         ResumeResponse response;
-        if (!botAccessService.canSearchEmployees(telegramId)) {
-            response =  botSearchService.mapResumeToResponseWithoutSubs(resume);
-        }else {
-            response =  botSearchService.mapResumeToResponse(resume);
+        // Если это не профиль и у пользователя нет подписки
+        if (!isProfile && !botAccessService.canSearchEmployees(telegramId)) {
+
+            // Нужно определить searchKey - получаем параметры резюме
+            String searchKey = buildSearchKeyForResume(resume);
+
+            LocalDate today = LocalDate.now();
+            List<Long> freeAccessIds = freeAccessTrackingRepository
+                    .findTodayFreeAccessIds(telegramId, searchKey, today);
+
+            // Проверяем, есть ли это резюме в списке бесплатных
+            if (freeAccessIds.contains(resumeId)) {
+                response = botSearchService.mapResumeToResponse(resume, true, false);
+            } else {
+                response = botSearchService.mapResumeToResponseWithoutSubs(resume, false, false);
+            }
+        } else {
+            // Полный доступ (профиль или есть подписка)
+            response = botSearchService.mapResumeToResponse(resume, false, false);
         }
+
         response.setMedia(mediaResponses);
         return ResponseEntity.ok(response);
+    }
+
+    private String buildSearchKeyForResume(Resume resume) {
+        return String.format("RESUME_C%d_S%d_CAT%d_SUB%d",
+                resume.getCity() != null ? resume.getCity().getId() : 0,
+                resume.getCategory() != null ? resume.getCategory().getSphere().getId() : 0,
+                resume.getCategory() != null ? resume.getCategory().getId() : 0,
+                resume.getSubcategory() != null ? resume.getSubcategory().getId() : 0
+        );
     }
 
     @PutMapping("/{resumeId}/update/{telegramId}")
