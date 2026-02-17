@@ -573,6 +573,8 @@ public class BotSearchService {
         response.setSubcategoryId(resume.getSubcategory().getId());
         response.setFree(isFree);
         response.setBoosted(isBoosted);
+        response.setTelegramUsername(resume.getUser().getUsername());
+
 
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
@@ -608,6 +610,7 @@ public class BotSearchService {
         response.setSphereId(resume.getCategory().getSphere().getId());
         response.setCategoryId(resume.getCategory().getId());
         response.setSubcategoryId(resume.getSubcategory().getId());
+        response.setTelegramUsername(resume.getUser().getUsername());
 
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
@@ -702,6 +705,7 @@ public class BotSearchService {
         response.setSphereId(vacancy.getCategory().getSphere().getId());
         response.setCategoryId(vacancy.getCategory().getId());
         response.setSubcategoryId(vacancy.getSubcategory().getId());
+        response.setTelegramUsername(vacancy.getUser().getUsername());
         response.setFree(isFree);
         response.setBoosted(isBoosted);
 
