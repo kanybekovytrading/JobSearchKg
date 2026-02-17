@@ -83,7 +83,7 @@ public class BotVacancyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
         Subcategory subcategory = subcategoryRepository.findById(request.getSubcategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Subcategory not found"));
+                .orElse(null);
 
         Vacancy vacancy = new Vacancy();
         vacancy.setUser(user);
