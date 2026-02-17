@@ -30,6 +30,7 @@ public class BotVacancyService {
     private final VacancyMediaRepository vacancyMediaRepository;
     private final MinioStorageService minioStorageService;
     private final VacancyNotificationService notificationService;
+    private final FreeAccessTrackingRepository freeAccessTrackingRepository;
 
     private static final int MAX_PHOTOS = 10;
     private static final int MAX_VIDEOS = 3;
@@ -130,6 +131,7 @@ public class BotVacancyService {
             throw new AccessDeniedException("Access denied");
         }
 
+
         // Удаляем все медиа файлы из MinIO
         List<VacancyMedia> mediaList = vacancyMediaRepository.findByVacancyIdOrderByDisplayOrderAsc(vacancyId);
         for (VacancyMedia media : mediaList) {
@@ -143,6 +145,8 @@ public class BotVacancyService {
                 // Логируем, но продолжаем
             }
         }
+
+        freeAccessTrackingRepository.deleteByVacancyId(vacancyId);
 
         vacancyRepository.delete(vacancy);
     }

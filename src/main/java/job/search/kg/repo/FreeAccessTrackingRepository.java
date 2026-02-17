@@ -35,4 +35,13 @@ public interface FreeAccessTrackingRepository extends JpaRepository<FreeAccessTr
     @Modifying
     @Query("DELETE FROM FreeAccessTracking fat WHERE fat.accessDate < :date")
     void deleteOldRecords(@Param("date") LocalDate date);
+
+    @Modifying
+    @Query("DELETE FROM FreeAccessTracking f WHERE f.entityId = :vacancyId AND f.searchKey LIKE 'VACANCY%'")
+    void deleteByVacancyId(@Param("vacancyId") Long vacancyId);
+
+    @Modifying
+    @Query("DELETE FROM FreeAccessTracking f WHERE f.entityId = :resumeId AND f.searchKey LIKE 'RESUME%'")
+    void deleteByResumeId(@Param("vacancyId") Long resumeId);
+
 }

@@ -28,6 +28,7 @@ public class BotResumeService {
     private final SubcategoryRepository subcategoryRepository;
     private final ResumeMediaRepository resumeMediaRepository;
     private final MinioStorageService minioStorageService;
+    private final FreeAccessTrackingRepository freeAccessTrackingRepository;
 
     private static final int MAX_PHOTOS = 10;
     private static final int MAX_VIDEOS = 3;
@@ -129,6 +130,8 @@ public class BotResumeService {
                 // Логируем ошибку, но продолжаем удаление
             }
         }
+        freeAccessTrackingRepository.deleteByResumeId(resumeId);
+
 
         resumeRepository.delete(resume);
     }
