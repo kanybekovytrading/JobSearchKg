@@ -149,7 +149,7 @@ public class BotPointsService {
                 () -> new ResourceNotFoundException("User not found")
         );
         // Валидация баллов
-        if (pointsAmount < 200) {
+        if (pointsAmount < 5000) {
             throw new IllegalArgumentException(
                     String.format("Minimum withdrawal is %d points (%d KGS)",
                             MIN_POINTS_FOR_WITHDRAWAL,
