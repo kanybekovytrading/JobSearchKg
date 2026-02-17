@@ -21,7 +21,6 @@ public class CreateVacancyRequest {
     @NotNull
     private Vacancy.GenderPreference preferredGender;
     private String address;
-    @NotNull
     private String schedule;
     @NotNull
     private Integer experienceInYear;
