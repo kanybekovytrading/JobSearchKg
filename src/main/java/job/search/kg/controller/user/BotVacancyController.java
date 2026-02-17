@@ -82,41 +82,24 @@ public class BotVacancyController {
         List<MediaResponse> mediaResponses = botVacancyService.getVacancyMedia(vacancyId);
 
         VacancyResponse response;
-        // Если это не профиль и у пользователя нет подписки
+
         if (!isProfile && !botAccessService.canSearchJobs(telegramId)) {
 
-            // Проверяем, является ли эта вакансия одной из бесплатных для пользователя
-            LocalDate today = LocalDate.now();
+            boolean isFree = freeAccessTrackingRepository
+                    .existsByTelegramIdAndEntityIdAndDate(telegramId, vacancyId, LocalDate.now(), "VACANCY");
 
-            // Нужно определить searchKey - получаем параметры вакансии
-            String searchKey = buildSearchKeyForVacancy(vacancy);
-
-            List<Long> freeAccessIds = freeAccessTrackingRepository
-                    .findTodayFreeAccessIds(telegramId, searchKey, today);
-
-            // Проверяем, есть ли эта вакансия в списке бесплатных
-            if (freeAccessIds.contains(vacancyId)) {
+            if (isFree) {
                 response = botSearchService.mapVacancyToResponse(vacancy, null, null, true, false);
             } else {
                 response = botSearchService.mapVacancyToResponseWithoutSubs(vacancy, null, null, false, false);
             }
+
         } else {
-            // Полный доступ (профиль или есть подписка)
             response = botSearchService.mapVacancyToResponse(vacancy, null, null, false, false);
         }
 
         response.setMedia(mediaResponses);
         return ResponseEntity.ok(response);
-    }
-
-    // Вспомогательный метод для построения searchKey
-    private String buildSearchKeyForVacancy(Vacancy vacancy) {
-        return String.format("VACANCY_C%d_S%d_CAT%d_SUB%d",
-                vacancy.getCity().getId(),
-                vacancy.getCategory().getSphere().getId(),
-                vacancy.getCategory().getId(),
-                vacancy.getSubcategory().getId()
-        );
     }
 
     @PutMapping("/{vacancyId}/update/{telegramId}")

@@ -82,38 +82,24 @@ public class BotResumeController {
         List<MediaResponse> mediaResponses = botResumeService.getResumeMedia(resumeId);
 
         ResumeResponse response;
-        // Если это не профиль и у пользователя нет подписки
+
         if (!isProfile && !botAccessService.canSearchEmployees(telegramId)) {
 
-            // Нужно определить searchKey - получаем параметры резюме
-            String searchKey = buildSearchKeyForResume(resume);
+            boolean isFree = freeAccessTrackingRepository
+                    .existsByTelegramIdAndEntityIdAndDate(telegramId, resumeId, LocalDate.now(), "RESUME");
 
-            LocalDate today = LocalDate.now();
-            List<Long> freeAccessIds = freeAccessTrackingRepository
-                    .findTodayFreeAccessIds(telegramId, searchKey, today);
-
-            // Проверяем, есть ли это резюме в списке бесплатных
-            if (freeAccessIds.contains(resumeId)) {
+            if (isFree) {
                 response = botSearchService.mapResumeToResponse(resume, true, false);
             } else {
                 response = botSearchService.mapResumeToResponseWithoutSubs(resume, false, false);
             }
+
         } else {
-            // Полный доступ (профиль или есть подписка)
             response = botSearchService.mapResumeToResponse(resume, false, false);
         }
 
         response.setMedia(mediaResponses);
         return ResponseEntity.ok(response);
-    }
-
-    private String buildSearchKeyForResume(Resume resume) {
-        return String.format("RESUME_C%d_S%d_CAT%d_SUB%d",
-                resume.getCity() != null ? resume.getCity().getId() : 0,
-                resume.getCategory() != null ? resume.getCategory().getSphere().getId() : 0,
-                resume.getCategory() != null ? resume.getCategory().getId() : 0,
-                resume.getSubcategory() != null ? resume.getSubcategory().getId() : 0
-        );
     }
 
     @PutMapping("/{resumeId}/update/{telegramId}")
