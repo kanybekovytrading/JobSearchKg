@@ -20,7 +20,6 @@ public class CreateVacancyRequest {
     private Integer maxAge;
     @NotNull
     private Vacancy.GenderPreference preferredGender;
-    @NotNull
     private String address;
     @NotNull
     private String schedule;
