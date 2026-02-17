@@ -346,24 +346,34 @@ public class BotSearchService {
             Integer subcategoryId,
             List<Vacancy> sortedVacancies) {
 
+        // Если вакансий нет вообще — сразу возвращаем пустой set
+        if (sortedVacancies.isEmpty()) {
+            return Collections.emptySet();
+        }
+
         LocalDate today = LocalDate.now();
         String searchKey = buildSearchKey("VACANCY", cityId, sphereId, categoryId, subcategoryId);
 
         List<Long> cachedIds = freeAccessTrackingRepository
                 .findTodayFreeAccessIds(telegramId, searchKey, today);
 
-        if (!cachedIds.isEmpty() && cachedIds.size() >= FREE_DAILY_LIMIT) {
-            return new HashSet<>(cachedIds.subList(0, FREE_DAILY_LIMIT));
+        // Максимально возможное количество бесплатных вакансий
+        // (либо 3, либо меньше если вакансий мало)
+        int effectiveLimit = Math.min(FREE_DAILY_LIMIT, sortedVacancies.size());
+
+        // Кэш валиден если содержит нужное количество записей
+        if (cachedIds.size() >= effectiveLimit) {
+            return new HashSet<>(cachedIds.subList(0, effectiveLimit));
         }
 
+        // Берём первые effectiveLimit вакансий из отсортированного списка
         List<Long> selectedIds = sortedVacancies.stream()
-                .limit(FREE_DAILY_LIMIT)
+                .limit(effectiveLimit)
                 .map(Vacancy::getId)
                 .collect(Collectors.toList());
 
-        if (!selectedIds.isEmpty()) {
-            freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
-        }
+        // Сохраняем только если кэш неполный или пустой
+        freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
 
         return new HashSet<>(selectedIds);
     }
@@ -376,24 +386,33 @@ public class BotSearchService {
             Integer subcategoryId,
             List<Resume> sortedResumes) {
 
+        // Если резюме нет вообще — сразу возвращаем пустой set
+        if (sortedResumes.isEmpty()) {
+            return Collections.emptySet();
+        }
+
         LocalDate today = LocalDate.now();
         String searchKey = buildSearchKey("RESUME", cityId, sphereId, categoryId, subcategoryId);
 
         List<Long> cachedIds = freeAccessTrackingRepository
                 .findTodayFreeAccessIds(telegramId, searchKey, today);
 
-        if (!cachedIds.isEmpty() && cachedIds.size() >= FREE_DAILY_LIMIT) {
-            return new HashSet<>(cachedIds.subList(0, FREE_DAILY_LIMIT));
+        // Максимально возможное количество бесплатных резюме
+        int effectiveLimit = Math.min(FREE_DAILY_LIMIT, sortedResumes.size());
+
+        // Кэш валиден если содержит нужное количество записей
+        if (cachedIds.size() >= effectiveLimit) {
+            return new HashSet<>(cachedIds.subList(0, effectiveLimit));
         }
 
+        // Берём первые effectiveLimit резюме из отсортированного списка
         List<Long> selectedIds = sortedResumes.stream()
-                .limit(FREE_DAILY_LIMIT)
+                .limit(effectiveLimit)
                 .map(Resume::getId)
                 .collect(Collectors.toList());
 
-        if (!selectedIds.isEmpty()) {
-            freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
-        }
+        // Сохраняем только если кэш неполный или пустой
+        freeAccessTrackingService.saveBatch(telegramId, searchKey, selectedIds, today);
 
         return new HashSet<>(selectedIds);
     }
