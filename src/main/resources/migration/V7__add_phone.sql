@@ -1,1 +1,0 @@
-ALTER TABLE resumes add column phone varchar(50);
