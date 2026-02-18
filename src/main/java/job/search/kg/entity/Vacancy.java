@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "vacancies")
@@ -90,8 +91,16 @@ public class Vacancy {
     private LocalDateTime updatedAt;
 
     @JsonIgnore
-    @OneToOne(mappedBy = "vacancy", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(mappedBy = "vacancy", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private VacancyStatistics statistics;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "vacancy", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<VacancyMedia> vacancyMediaList;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "vacancy", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<VacancyBoost> vacancyBoosts;
 
     public enum GenderPreference {
         MALE,       // Только мужчины

@@ -145,6 +145,7 @@ public class BotVacancyService {
                 // Логируем, но продолжаем
             }
         }
+        vacancyMediaRepository.deleteAll(mediaList);
 
         freeAccessTrackingRepository.deleteByVacancyId(vacancyId);
 

@@ -42,7 +42,7 @@ public interface FreeAccessTrackingRepository extends JpaRepository<FreeAccessTr
 
     @Modifying
     @Query("DELETE FROM FreeAccessTracking f WHERE f.entityId = :resumeId AND f.searchKey LIKE 'RESUME%'")
-    void deleteByResumeId(@Param("vacancyId") Long resumeId);
+    void deleteByResumeId(@Param("resumeId") Long resumeId);
 
     @Query("SELECT COUNT(fat) > 0 FROM FreeAccessTracking fat " +
             "WHERE fat.telegramId = :telegramId " +
