@@ -8,6 +8,7 @@ import job.search.kg.entity.*;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import job.search.kg.service.MinioStorageService;
+import job.search.kg.telegram.notification.ResumeNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class BotResumeService {
     private final ResumeMediaRepository resumeMediaRepository;
     private final MinioStorageService minioStorageService;
     private final FreeAccessTrackingRepository freeAccessTrackingRepository;
+    private final ResumeNotificationService resumeNotificationService;
 
     private static final int MAX_PHOTOS = 10;
     private static final int MAX_VIDEOS = 3;
@@ -81,8 +83,11 @@ public class BotResumeService {
         resume.setExperience(request.getExperience());
         resume.setDescription(request.getDescription());
         resume.setIsActive(request.getIsActive());
+        resume.setPhone(request.getPhone());
 
-        return resumeRepository.save(resume);
+        resume = resumeRepository.save(resume);
+        resumeNotificationService.notifyEmployersAboutNewResume(resume);
+        return resume;
     }
 
     @Transactional(readOnly = true)
@@ -181,6 +186,10 @@ public class BotResumeService {
         if (request.getIsActive() != null) {
             resume.setIsActive(request.getIsActive());
         }
+        if (request.getPhone() != null) {
+            resume.setPhone(request.getPhone());
+        }
+
 
         return resumeRepository.save(resume);
     }
@@ -360,6 +369,7 @@ public class BotResumeService {
         response.setDescription(resume.getDescription());
         response.setIsActive(resume.getIsActive());
         response.setCreatedAt(resume.getCreatedAt());
+        response.setPhone(response.getPhone());
 
         // Добавляем медиа файлы
         List<MediaResponse> mediaList = resumeMediaRepository

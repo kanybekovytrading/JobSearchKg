@@ -14,4 +14,5 @@ public class CreateResumeRequest {
     private Integer experience;
     private String description;
     private Boolean isActive = true;
+    private String phone;
 }

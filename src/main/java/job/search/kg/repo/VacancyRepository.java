@@ -45,4 +45,7 @@ public interface VacancyRepository extends JpaRepository<Vacancy, Long>, JpaSpec
             @Param("subcategoryIds") List<Long> subcategoryIds,
             @Param("limit") int limit
     );
+
+    // VacancyRepository
+    List<Vacancy> findBySubcategoryIdAndCityIdAndIsActiveTrue(Integer subcategoryId, Integer cityId);
 }

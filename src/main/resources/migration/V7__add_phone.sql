@@ -1,0 +1,1 @@
+ALTER TABLE resume add column phone varchar(50);

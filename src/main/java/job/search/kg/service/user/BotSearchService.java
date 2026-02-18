@@ -566,7 +566,7 @@ public class BotSearchService {
         response.setExperience(resume.getExperience());
         response.setDescription(resume.getDescription());
         response.setTelegramUsername(resume.getUser().getUsername());
-        response.setPhone(resume.getUser().getPhone());
+        response.setPhone(resume.getPhone());
         response.setCityId(resume.getCity().getId());
         response.setSphereId(resume.getCategory().getSphere().getId());
         response.setCategoryId(resume.getCategory().getId());
@@ -589,8 +589,8 @@ public class BotSearchService {
     public ResumeResponse mapResumeToResponseWithoutSubs(Resume resume, boolean isFree, boolean isBoosted) {
         ResumeResponse response = new ResumeResponse();
 
-        if (resume.getUser().getPhone() != null && !resume.getUser().getPhone().isEmpty()) {
-            String phone = resume.getUser().getPhone();
+        if (resume.getPhone() != null && !resume.getPhone().isEmpty()) {
+            String phone = resume.getPhone();
             String maskedPhone = phone.length() > 6 ? phone.substring(0, 6) + " *** ***" : "*** *** ***";
             response.setPhone(maskedPhone);
         }

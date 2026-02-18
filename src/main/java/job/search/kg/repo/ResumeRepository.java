@@ -33,4 +33,5 @@ public interface ResumeRepository extends JpaRepository<Resume, Long>, JpaSpecif
     );
 
     List<Resume> findByUserAndIsActiveTrue(User user);
+
 }
