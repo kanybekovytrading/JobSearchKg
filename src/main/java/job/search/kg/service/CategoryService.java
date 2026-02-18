@@ -27,7 +27,7 @@ public class CategoryService {
     public List<CustomResponse> getAllSpheres(Long telegramId) {
         // Получаем язык пользователя
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
 
         User.Language language = user.getLanguage();
 
@@ -46,7 +46,7 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public List<CustomResponse> getAllActiveCategories(Long telegramId, Integer sphereId) {
         User user = userRepository.findByTelegramId(telegramId).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
+                () -> new ResourceNotFoundException("Пользователь не найден")
         );
         List<Category> categories = categoryRepository.findBySphereIdAndIsActive(sphereId, true);
 
@@ -62,10 +62,10 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public CustomResponse getCategoryById(Integer id, Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
+                () -> new ResourceNotFoundException("Пользователь не найден")
         );
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Категория не найдена"));
 
         return CustomResponse.builder()
                 .id(category.getId())

@@ -21,10 +21,10 @@ public class BotReferralService {
     @Transactional
     public void processReferral(Long referrerId, Long newUserId) {
         User referrer = userRepository.findByTelegramId(referrerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Referrer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Реферер не найден"));
 
         User newUser = userRepository.findByTelegramId(newUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("New user not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Новый пользователь не найден"));
 
         Long referralsCount = userRepository.countByReferrer(referrer);
 
@@ -59,7 +59,7 @@ public class BotReferralService {
     @Transactional(readOnly = true)
     public ReferralInfoResponse getReferralInfo(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         String referralLink = "https://t.me/Workkg_bot?start=" + user.getReferralCode();
 

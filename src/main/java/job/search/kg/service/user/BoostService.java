@@ -44,19 +44,19 @@ public class BoostService {
     @Transactional
     public VacancyBoost boostVacancyWithPoints(Long telegramId, Long vacancyId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         // Проверяем владельца
         if (!vacancy.getUser().getId().equals(user.getId())) {
-            throw new IllegalStateException("You can only boost your own vacancies");
+            throw new IllegalStateException("Вы можете поднимать только свои вакансии");
         }
 
         // Проверяем баланс
         if (!pointsService.hasEnoughPoints(telegramId, BOOST_COST_POINTS)) {
-            throw new InsufficientBalanceException("Insufficient points for boost");
+            throw new InsufficientBalanceException("Недостаточно баллов для поднятия");
         }
 
         // Списываем баллы
@@ -93,13 +93,13 @@ public class BoostService {
             Long vacancyId
     ) throws Exception {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         if (!vacancy.getUser().getId().equals(user.getId())) {
-            throw new IllegalStateException("You can only boost your own vacancies");
+            throw new IllegalStateException("Вы можете поднимать только свои вакансии");
         }
         CreatePaymentResponse createPaymentResponse = paymentService.createPayment(telegramId, BigDecimal.valueOf(BOOST_COST_SOMS), "вакансии", "string");
         // Создаем буст
@@ -124,17 +124,17 @@ public class BoostService {
     @Transactional
     public ResumeBoost boostResumeWithPoints(Long telegramId, Long resumeId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         Resume resume = resumeRepository.findById(resumeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
 
         if (!resume.getUser().getId().equals(user.getId())) {
-            throw new IllegalStateException("You can only boost your own resumes");
+            throw new IllegalStateException("Вы можете поднимать только свои резюме");
         }
 
         if (!pointsService.hasEnoughPoints(telegramId, BOOST_COST_POINTS)) {
-            throw new InsufficientBalanceException("Insufficient points for boost");
+            throw new InsufficientBalanceException("Недостаточно баллов для поднятия");
         }
 
         pointsService.deductPoints(
@@ -168,13 +168,13 @@ public class BoostService {
             Long resumeId
     ) throws Exception {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         Resume resume = resumeRepository.findById(resumeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
 
         if (!resume.getUser().getId().equals(user.getId())) {
-            throw new IllegalStateException("You can only boost your own resumes");
+            throw new IllegalStateException("Вы можете поднимать только свои резюме");
         }
 
         CreatePaymentResponse createPaymentResponse = paymentService.createPayment(telegramId, BigDecimal.valueOf(BOOST_COST_SOMS), "резюме", "string");

@@ -40,7 +40,7 @@ public class BotVacancyService {
     @Transactional(readOnly = true)
     public VacancyStatsResponse getUserVacancyStats(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         List<Vacancy> vacancies = vacancyRepository.findByUser(user);
 
@@ -61,10 +61,10 @@ public class BotVacancyService {
     @Transactional
     public Vacancy updateVacancyStatus(Long vacancyId, Long telegramId, Boolean isActive) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         if (!vacancy.getUser().getTelegramId().equals(telegramId)) {
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("Доступ запрещён");
         }
 
         vacancy.setIsActive(isActive);
@@ -74,13 +74,13 @@ public class BotVacancyService {
     @Transactional
     public Vacancy createVacancy(Long telegramId, CreateVacancyRequest request) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         City city = cityRepository.findById(request.getCityId())
-                .orElseThrow(() -> new ResourceNotFoundException("City not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Город не найденd"));
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Категория не найдена"));
 
         Subcategory subcategory = subcategoryRepository.findById(request.getSubcategoryId())
                 .orElse(null);
@@ -115,7 +115,7 @@ public class BotVacancyService {
     @Transactional(readOnly = true)
     public List<VacancyResponse> getUserVacancies(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         return vacancyRepository.findByUser(user).stream()
                 .map(this::mapToResponse)
@@ -125,10 +125,10 @@ public class BotVacancyService {
     @Transactional
     public void deleteVacancy(Long vacancyId, Long telegramId) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         if (!vacancy.getUser().getTelegramId().equals(telegramId)) {
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("Доступ запрещён");
         }
 
 
@@ -155,27 +155,27 @@ public class BotVacancyService {
     @Transactional
     public Vacancy updateVacancy(Long vacancyId, Long telegramId, CreateVacancyRequest request) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         if (!vacancy.getUser().getTelegramId().equals(telegramId)) {
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("Доступ запрещён");
         }
 
         if (request.getCityId() != null && !vacancy.getCity().getId().equals(request.getCityId())) {
             City city = cityRepository.findById(request.getCityId())
-                    .orElseThrow(() -> new ResourceNotFoundException("City not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Город не найден"));
             vacancy.setCity(city);
         }
 
         if (request.getCategoryId() != null && !vacancy.getCategory().getId().equals(request.getCategoryId())) {
             Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Категория не найдена"));
             vacancy.setCategory(category);
         }
 
         if (request.getSubcategoryId() != null && !vacancy.getSubcategory().getId().equals(request.getSubcategoryId())) {
             Subcategory subcategory = subcategoryRepository.findById(request.getSubcategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Subcategory not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Подкатегория не найдена"));
             vacancy.setSubcategory(subcategory);
         }
 
@@ -229,16 +229,16 @@ public class BotVacancyService {
                 .count();
 
         if (photoCount >= MAX_PHOTOS) {
-            throw new IllegalStateException("Maximum number of photos reached (" + MAX_PHOTOS + ")");
+            throw new IllegalStateException("Достигнут максимальный лимит фотографий (" + MAX_PHOTOS + ")");
         }
 
         if (file.getSize() > MAX_PHOTO_SIZE) {
-            throw new IllegalArgumentException("Photo size exceeds maximum allowed size (10 MB)");
+            throw new IllegalArgumentException("Размер фото превышает максимально допустимый (10 МБ)");
         }
 
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Invalid file type. Only images are allowed");
+            throw new IllegalArgumentException("Недопустимый тип файла. Разрешены только изображения");
         }
 
         String fileUrl = minioStorageService.uploadVacancyFile(file, vacancyId);
@@ -276,16 +276,16 @@ public class BotVacancyService {
                 .count();
 
         if (videoCount >= MAX_VIDEOS) {
-            throw new IllegalStateException("Maximum number of videos reached (" + MAX_VIDEOS + ")");
+            throw new IllegalStateException("Достигнут максимальный лимит видео (" + MAX_VIDEOS + ")");
         }
 
         if (file.getSize() > MAX_VIDEO_SIZE) {
-            throw new IllegalArgumentException("Video size exceeds maximum allowed size (100 MB)");
+            throw new IllegalArgumentException("Размер видео превышает максимально допустимый (100 МБ)");
         }
 
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("video/")) {
-            throw new IllegalArgumentException("Invalid file type. Only videos are allowed");
+            throw new IllegalArgumentException("Недопустимый тип файла. Разрешены только видео");
         }
 
         String fileUrl = minioStorageService.uploadVacancyFile(file, vacancyId);
@@ -327,7 +327,7 @@ public class BotVacancyService {
     @Transactional
     public void deleteVacancyMedia(Long mediaId, Long telegramId) throws Exception {
         VacancyMedia media = vacancyMediaRepository.findById(mediaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Media not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Медиафайл не найден"));
 
         validateVacancyOwnership(media.getVacancy().getId(), telegramId);
 
@@ -347,7 +347,7 @@ public class BotVacancyService {
     @Transactional
     public void updateMediaOrder(Long mediaId, Long telegramId, Integer newOrder) {
         VacancyMedia media = vacancyMediaRepository.findById(mediaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Media not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Медиафайл не найден"));
 
         validateVacancyOwnership(media.getVacancy().getId(), telegramId);
 
@@ -357,10 +357,10 @@ public class BotVacancyService {
 
     private Vacancy validateVacancyOwnership(Long vacancyId, Long telegramId) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         if (!vacancy.getUser().getTelegramId().equals(telegramId)) {
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("Доступ запрещён");
         }
 
         return vacancy;

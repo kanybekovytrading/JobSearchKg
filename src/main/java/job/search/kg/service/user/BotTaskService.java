@@ -29,7 +29,7 @@ public class BotTaskService {
     @Transactional(readOnly = true)
     public TaskListResponse getAvailableTasks(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         List<SocialTask> allTasks = taskRepository.findByIsActive(true);
         List<UserTask> completedTasks = userTaskRepository.findByUser(user);
@@ -52,21 +52,21 @@ public class BotTaskService {
     @Transactional
     public UserTask completeTask(Long telegramId, CompleteTaskRequest request) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         SocialTask task = taskRepository.findById(request.getTaskId())
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Задание не найдено"));
 
         // Проверка, не выполнено ли уже
         if (userTaskRepository.existsByUserAndTask(user, task)) {
-            throw new IllegalStateException("Task already completed");
+            throw new IllegalStateException("Задание уже выполнено");
         }
 
         // Проверка подписки для Telegram
         if (task.getType() == SocialTask.TaskType.TELEGRAM) {
             boolean isSubscribed = telegramService.checkSubscription(telegramId, task.getChannelId());
             if (!isSubscribed) {
-                throw new IllegalStateException("Not subscribed to channel");
+                throw new IllegalStateException("Вы не подписаны на канал");
             }
         }
 
@@ -91,10 +91,10 @@ public class BotTaskService {
     @Transactional(readOnly = true)
     public boolean isTaskCompleted(Long telegramId, Integer taskId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         SocialTask task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Задание не найдено"));
 
         return userTaskRepository.existsByUserAndTask(user, task);
     }

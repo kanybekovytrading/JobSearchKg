@@ -24,7 +24,7 @@ public class BotSubscriptionService {
     @Transactional(readOnly = true)
     public boolean hasActiveSubscription(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         Optional<Subscription> subscription = subscriptionRepository
                 .findActiveSubscription(user, LocalDateTime.now());
@@ -35,7 +35,7 @@ public class BotSubscriptionService {
     @Transactional(readOnly = true)
     public SubscriptionStatusResponse getSubscriptionStatus(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         Optional<Subscription> activeSubscription = subscriptionRepository
                 .findActiveSubscription(user, LocalDateTime.now());
@@ -59,7 +59,7 @@ public class BotSubscriptionService {
     @Transactional
     public void createSubscription(Long telegramId, Subscription.PlanType planType, String paymentId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         Optional<Subscription> existingSubscription = subscriptionRepository
                 .findActiveSubscription(user, LocalDateTime.now());

@@ -22,7 +22,7 @@ public class CityService {
     @Transactional(readOnly = true)
     public List<CustomResponse> getAllActiveCities(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
+                () -> new ResourceNotFoundException("Пользователь не найден")
         );
         List<City> cities = cityRepository.findByIsActive(true);
 
@@ -37,9 +37,9 @@ public class CityService {
     @Transactional(readOnly = true)
     public CustomResponse getCityById(Integer id, Long telegramId) {
         City city = cityRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("City not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Город не найден"));
         User user = userRepository.findByTelegramId(telegramId).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
+                () -> new ResourceNotFoundException("Пользователь не найден")
         );
         return CustomResponse.builder()
                 .id(city.getId())

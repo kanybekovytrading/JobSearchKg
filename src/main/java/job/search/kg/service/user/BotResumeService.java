@@ -42,7 +42,7 @@ public class BotResumeService {
     @Transactional(readOnly = true)
     public ResumeStatsResponse getUserResumeStats(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         List<Resume> resumes = resumeRepository.findByUser(user);
 
@@ -63,16 +63,16 @@ public class BotResumeService {
     @Transactional
     public Resume createResume(Long telegramId, CreateResumeRequest request, MultipartFile photo) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         City city = cityRepository.findById(request.getCityId())
-                .orElseThrow(() -> new ResourceNotFoundException("City not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Город не найден"));
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Категория не найдена"));
 
         Subcategory subcategory = subcategoryRepository.findById(request.getSubcategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Subcategory not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Подкатегория не найдена"));
 
         Resume resume = new Resume();
         resume.setUser(user);
@@ -104,7 +104,7 @@ public class BotResumeService {
     @Transactional(readOnly = true)
     public List<ResumeResponse> getUserResumes(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         return resumeRepository.findByUser(user).stream()
                 .map(this::mapToResponse)
@@ -114,10 +114,10 @@ public class BotResumeService {
     @Transactional
     public Resume updateResumeStatus(Long resumeId, Long telegramId, Boolean isActive) {
         Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Резюме не найдено"));
 
         if (!resume.getUser().getTelegramId().equals(telegramId)) {
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("Доступ запрещён");
         }
 
         resume.setIsActive(isActive);
@@ -127,10 +127,10 @@ public class BotResumeService {
     @Transactional
     public void deleteResume(Long resumeId, Long telegramId) {
         Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Резюме не найдено"));
 
         if (!resume.getUser().getTelegramId().equals(telegramId)) {
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("Доступ запрещён");
         }
 
         // Удаляем все медиа файлы
@@ -155,27 +155,27 @@ public class BotResumeService {
     @Transactional
     public Resume updateResume(Long resumeId, Long telegramId, CreateResumeRequest request) {
         Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Резюме не найдено"));
 
         if (!resume.getUser().getTelegramId().equals(telegramId)) {
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("Доступ запрещён");
         }
 
         if (request.getCityId() != null && !resume.getCity().getId().equals(request.getCityId())) {
             City city = cityRepository.findById(request.getCityId())
-                    .orElseThrow(() -> new ResourceNotFoundException("City not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Город не найден"));
             resume.setCity(city);
         }
 
         if (request.getCategoryId() != null && !resume.getCategory().getId().equals(request.getCategoryId())) {
             Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Категория не найдена"));
             resume.setCategory(category);
         }
 
         if (request.getSubcategoryId() != null && !resume.getSubcategory().getId().equals(request.getSubcategoryId())) {
             Subcategory subcategory = subcategoryRepository.findById(request.getSubcategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Subcategory not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Подкатегория не найдена"));
             resume.setSubcategory(subcategory);
         }
 
@@ -219,18 +219,18 @@ public class BotResumeService {
                 .count();
 
         if (photoCount >= MAX_PHOTOS) {
-            throw new IllegalStateException("Maximum number of photos reached (" + MAX_PHOTOS + ")");
+            throw new IllegalStateException("Достигнут максимальный лимит фотографий (" + MAX_PHOTOS + ")");
         }
 
         // Проверка размера файла
         if (file.getSize() > MAX_PHOTO_SIZE) {
-            throw new IllegalArgumentException("Photo size exceeds maximum allowed size (10 MB)");
+            throw new IllegalArgumentException("Размер фото превышает максимально допустимый (10 МБ)");
         }
 
         // Проверка типа файла
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Invalid file type. Only images are allowed");
+            throw new IllegalArgumentException("Недопустимый тип файла. Разрешены только изображения");
         }
 
         // Загрузка в MinIO
@@ -271,18 +271,18 @@ public class BotResumeService {
                 .count();
 
         if (videoCount >= MAX_VIDEOS) {
-            throw new IllegalStateException("Maximum number of videos reached (" + MAX_VIDEOS + ")");
+            throw new IllegalStateException("Достигнут максимальный лимит видео (" + MAX_VIDEOS + ")");
         }
 
         // Проверка размера файла
         if (file.getSize() > MAX_VIDEO_SIZE) {
-            throw new IllegalArgumentException("Video size exceeds maximum allowed size (100 MB)");
+            throw new IllegalArgumentException("Размер видео превышает максимально допустимый (100 МБ)");
         }
 
         // Проверка типа файла
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("video/")) {
-            throw new IllegalArgumentException("Invalid file type. Only videos are allowed");
+            throw new IllegalArgumentException("Недопустимый тип файла. Разрешены только видео");
         }
 
         // Загрузка в MinIO
@@ -326,7 +326,7 @@ public class BotResumeService {
     @Transactional
     public void deleteResumeMedia(Long mediaId, Long telegramId) throws Exception {
         ResumeMedia media = resumeMediaRepository.findById(mediaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Media not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Медиафайл не найден"));
 
         validateResumeOwnership(media.getResume().getId(), telegramId);
 
@@ -348,7 +348,7 @@ public class BotResumeService {
     @Transactional
     public void updateMediaOrder(Long mediaId, Long telegramId, Integer newOrder) {
         ResumeMedia media = resumeMediaRepository.findById(mediaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Media not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Медиафайл не найден"));
 
         validateResumeOwnership(media.getResume().getId(), telegramId);
 
@@ -358,10 +358,10 @@ public class BotResumeService {
 
     private Resume validateResumeOwnership(Long resumeId, Long telegramId) {
         Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Резюме не найдено"));
 
         if (!resume.getUser().getTelegramId().equals(telegramId)) {
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("Доступ запрещён");
         }
 
         return resume;

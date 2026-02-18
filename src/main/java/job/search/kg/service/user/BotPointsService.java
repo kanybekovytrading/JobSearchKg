@@ -146,12 +146,12 @@ public class BotPointsService {
     ) {
 
         User user = userRepository.findByTelegramId(telegramId).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
+                () -> new ResourceNotFoundException("Пользователь не найден")
         );
         // Валидация баллов
-        if (pointsAmount < 5000) {
+        if (pointsAmount < 2000) {
             throw new IllegalArgumentException(
-                    String.format("Minimum withdrawal is %d points (%d KGS)",
+                    String.format("Минимальная сумма вывода — %d баллов (%d сом)",
                             MIN_POINTS_FOR_WITHDRAWAL,
                             MIN_POINTS_FOR_WITHDRAWAL / POINTS_PER_SOM)
             );
@@ -159,7 +159,7 @@ public class BotPointsService {
 
         // Проверяем баланс
         if (!hasEnoughPoints(telegramId, pointsAmount)) {
-            throw new InsufficientBalanceException("Insufficient balance for withdrawal");
+            throw new InsufficientBalanceException("Недостаточно баллов для вывода средств");
         }
 
         // Конвертируем баллы в сомы: points / 20 = soms
@@ -203,7 +203,7 @@ public class BotPointsService {
     @Transactional(readOnly = true)
     public WithdrawalInfo getWithdrawalInfo(Long telegramId) {
         User user = userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
         int balance = user.getBalance();
         int availableSoms = balance / POINTS_PER_SOM;

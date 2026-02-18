@@ -495,7 +495,7 @@ public class BotSearchService {
     @Transactional
     public void trackVacancyView(Long vacancyId) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         VacancyStatistics stats = vacancyStatisticsRepository
                 .findByVacancyId(vacancyId)
@@ -526,7 +526,7 @@ public class BotSearchService {
     @Transactional
     public void trackResumeView(Long resumeId) {
         Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Резюме не найдено"));
 
         ResumeStatistics stats = resumeStatisticsRepository
                 .findByResumeId(resumeId)
@@ -548,7 +548,7 @@ public class BotSearchService {
     public void trackResumeContactClick(Long resumeId) {
         ResumeStatistics stats = resumeStatisticsRepository
                 .findByResumeId(resumeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Resume statistics not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Статистика резюме не найдена"));
 
         stats.incrementContactClicks();
         resumeStatisticsRepository.save(stats);
@@ -635,7 +635,7 @@ public class BotSearchService {
     @Transactional(readOnly = true)
     public VacancyStatisticsResponse getVacancyStatistics(Long vacancyId) {
         Vacancy vacancy = vacancyRepository.findById(vacancyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vacancy not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         VacancyStatistics stats = vacancyStatisticsRepository
                 .findByVacancyId(vacancyId)
@@ -658,7 +658,7 @@ public class BotSearchService {
     @Transactional(readOnly = true)
     public ResumeStatisticsResponse getResumeStatistics(Long resumeId) {
         Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Резюме не найдено"));
 
         ResumeStatistics stats = resumeStatisticsRepository
                 .findByResumeId(resumeId)

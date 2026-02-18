@@ -24,7 +24,7 @@ public class BotUserService {
     @Transactional
     public User registerUser(UserRegistrationRequest request) {
         if (userRepository.existsByTelegramId(request.getTelegramId())) {
-            throw new UserAlreadyExistsException("User already exists");
+            throw new UserAlreadyExistsException("Пользователь уже существует");
         }
 
         User user = new User();
@@ -53,7 +53,7 @@ public class BotUserService {
     @Transactional(readOnly = true)
     public User getUserByTelegramId(Long telegramId) {
         return userRepository.findByTelegramId(telegramId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
     }
 
     @Transactional(readOnly = true)
