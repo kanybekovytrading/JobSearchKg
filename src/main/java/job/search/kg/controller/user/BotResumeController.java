@@ -35,12 +35,11 @@ public class BotResumeController {
     private final FreeAccessTrackingRepository freeAccessTrackingRepository;
 
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping
     public ResponseEntity<Resume> createResume(
             @RequestParam Long telegramId,
-            @RequestPart("data") CreateResumeRequest request,
-            @RequestPart(value = "photo", required = false) MultipartFile photo) {
-        Resume resume = botResumeService.createResume(telegramId, request, photo);
+            @RequestBody CreateResumeRequest request) {
+        Resume resume = botResumeService.createResume(telegramId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(resume);
     }
 

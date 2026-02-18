@@ -61,7 +61,7 @@ public class BotResumeService {
     }
 
     @Transactional
-    public Resume createResume(Long telegramId, CreateResumeRequest request, MultipartFile photo) {
+    public Resume createResume(Long telegramId, CreateResumeRequest request) {
         User user = userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
@@ -86,15 +86,6 @@ public class BotResumeService {
         resume.setDescription(request.getDescription());
         resume.setIsActive(request.getIsActive());
         resume.setPhone(request.getPhone());
-
-        if (photo != null && !photo.isEmpty()) {
-            try {
-                String fileUrl = minioStorageService.uploadResumeFile(photo, null);
-                resume.setProfilePhotoUrl(fileUrl);
-            } catch (Exception e) {
-                log.warn("Failed to upload profile photo during resume creation: {}", e.getMessage());
-            }
-        }
 
         resume = resumeRepository.save(resume);
         resumeNotificationService.notifyEmployersAboutNewResume(resume);
