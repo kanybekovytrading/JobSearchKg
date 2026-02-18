@@ -10,6 +10,7 @@ import job.search.kg.repo.*;
 import job.search.kg.service.MinioStorageService;
 import job.search.kg.telegram.notification.ResumeNotificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BotResumeService {
@@ -59,7 +61,7 @@ public class BotResumeService {
     }
 
     @Transactional
-    public Resume createResume(Long telegramId, CreateResumeRequest request) {
+    public Resume createResume(Long telegramId, CreateResumeRequest request, MultipartFile photo) {
         User user = userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -84,6 +86,15 @@ public class BotResumeService {
         resume.setDescription(request.getDescription());
         resume.setIsActive(request.getIsActive());
         resume.setPhone(request.getPhone());
+
+        if (photo != null && !photo.isEmpty()) {
+            try {
+                String fileUrl = minioStorageService.uploadResumeFile(photo, null);
+                resume.setProfilePhotoUrl(fileUrl);
+            } catch (Exception e) {
+                log.warn("Failed to upload profile photo during resume creation: {}", e.getMessage());
+            }
+        }
 
         resume = resumeRepository.save(resume);
         resumeNotificationService.notifyEmployersAboutNewResume(resume);

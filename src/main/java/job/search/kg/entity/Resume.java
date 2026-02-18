@@ -51,6 +51,7 @@ public class Resume {
 
     @Column(name = "experience")
     private Integer experience; // лет опыта
+    private String profilePhotoUrl;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;

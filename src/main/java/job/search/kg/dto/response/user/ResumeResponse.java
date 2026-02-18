@@ -29,4 +29,5 @@ public class ResumeResponse {
     private Integer sphereId;
     private Integer categoryId;
     private Integer subcategoryId;
+    private String profilePhoto;
 }

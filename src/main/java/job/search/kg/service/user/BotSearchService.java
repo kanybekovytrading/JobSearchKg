@@ -574,7 +574,7 @@ public class BotSearchService {
         response.setFree(isFree);
         response.setBoosted(isBoosted);
         response.setTelegramUsername(resume.getUser().getUsername());
-
+        response.setProfilePhoto(resume.getProfilePhotoUrl());
 
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
@@ -611,6 +611,7 @@ public class BotSearchService {
         response.setCategoryId(resume.getCategory().getId());
         response.setSubcategoryId(resume.getSubcategory().getId());
         response.setTelegramUsername(resume.getUser().getUsername());
+        response.setProfilePhoto(resume.getProfilePhotoUrl());
 
         List<MediaResponse> mediaList = resumeMediaRepository
                 .findByResumeIdOrderByDisplayOrderAsc(resume.getId())
