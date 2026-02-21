@@ -17,7 +17,7 @@ public class VacancyMapper {
                 .id(vacancy.getId())
                 .title(vacancy.getTitle())
                 .description(vacancy.getDescription())
-                .salary(vacancy.getSalary() != null ? Double.valueOf(vacancy.getSalary()) : null)
+                .salary(parseSalary(vacancy.getSalary()))
                 .companyName(vacancy.getCompanyName())
                 .phone(vacancy.getPhone())
                 .isActive(vacancy.getIsActive())
@@ -47,7 +47,7 @@ public class VacancyMapper {
                 .id(vacancy.getId())
                 .title(vacancy.getTitle())
                 .description(vacancy.getDescription())
-                .salary(vacancy.getSalary() != null ? Double.valueOf(vacancy.getSalary()) : null)
+                .salary(parseSalary(vacancy.getSalary()))
                 .companyName(vacancy.getCompanyName())
                 .phone(vacancy.getPhone())
                 .isActive(vacancy.getIsActive())
@@ -105,5 +105,14 @@ public class VacancyMapper {
             case RU -> vacancy.getSubcategory().getNameRu();
             default -> vacancy.getSubcategory().getNameRu(); // fallback to Russian
         };
+    }
+
+    private Double parseSalary(String salary) {
+        if (salary == null) return null;
+        try {
+            return Double.valueOf(salary.replace(",", "."));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
