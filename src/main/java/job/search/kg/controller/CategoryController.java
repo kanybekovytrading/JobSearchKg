@@ -29,4 +29,18 @@ public class CategoryController {
         List<CustomResponse> categories = categoryService.getAllActiveCategories(telegramId, sphereId);
         return ResponseEntity.ok(categories);
     }
+
+    @GetMapping("admin/sphere")
+    public ResponseEntity<List<CustomResponse>> getAllSpheres(
+    ) {
+        List<CustomResponse> spheres = categoryService.getAllSpheres(null);
+        return ResponseEntity.ok(spheres);
+    }
+
+    @GetMapping("admin/{sphereId}")
+    public ResponseEntity<List<CustomResponse>> getAllActiveCategories(@PathVariable Integer sphereId) {
+        List<CustomResponse> categories = categoryService.getAllActiveCategories(null, sphereId);
+        return ResponseEntity.ok(categories);
+    }
+
 }

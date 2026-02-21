@@ -40,13 +40,40 @@ public class DataInitializer implements CommandLineRunner {
             cityRepository.saveAll(cities);
             log.info("✅ Инициализировано {} городов", cities.size());
         }
-
         if (!adminRepository.existsByEmail("admin@gmail.com")) {
             Admin admin = Admin.builder()
                     .name("Администратор")
                     .email("admin@gmail.com")
                     .role(Admin.AdminRole.ADMIN)
                     .passwordHash(passwordEncoder.encode("admin123")) // Реальный пароль хешируется
+                    .isActive(true)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            adminRepository.save(admin);
+            log.info("Admin successfully added!");
+        }
+
+        if (!adminRepository.existsByEmail("admin@workkg.com")) {
+            Admin admin = Admin.builder()
+                    .name("Администратор")
+                    .email("admin@workkg.com")
+                    .role(Admin.AdminRole.ADMIN)
+                    .passwordHash(passwordEncoder.encode("admin-212-2026")) // Реальный пароль хешируется
+                    .isActive(true)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            adminRepository.save(admin);
+            log.info("Admin successfully added!");
+        }
+
+        if (!adminRepository.existsByEmail("manager@workkg.com")) {
+            Admin admin = Admin.builder()
+                    .name("Менеджер")
+                    .email("manager@workkg.com")
+                    .role(Admin.AdminRole.ADMIN)
+                    .passwordHash(passwordEncoder.encode("manager-work.kg-2026"))
                     .isActive(true)
                     .createdAt(LocalDateTime.now())
                     .build();
