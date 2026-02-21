@@ -8,7 +8,9 @@ import job.search.kg.mapper.VacancyMapper;
 import job.search.kg.service.admin.AdminVacancyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,7 +30,12 @@ public class AdminVacancyController {
     public ResponseEntity<Page<VacancyResponse>> getAllVacancies(
             Pageable pageable) {
 
-        Page<Vacancy> vacancies = adminVacancyService.getAllVacancies(pageable);
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        Page<Vacancy> vacancies = adminVacancyService.getAllVacancies(sortedPageable);
         Page<VacancyResponse> response = vacancies.map(vacancyMapper::toResponse);
         return ResponseEntity.ok(response);
     }
