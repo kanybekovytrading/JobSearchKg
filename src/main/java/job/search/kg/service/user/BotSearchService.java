@@ -65,20 +65,13 @@ public class BotSearchService {
         );
 
         LocalDateTime now = LocalDateTime.now();
-        Set<Long> boostedVacancyIds = vacancyBoostRepository
-                .findActiveBoostVacancyIds(now);
+        Set<Long> boostedVacancyIds = vacancyBoostRepository.findActiveBoostVacancyIds(now);
+        log.info("Found {} active boosted vacancies", boostedVacancyIds.size());
 
         List<Vacancy> vacancies = vacancyRepository.findAll(spec);
         log.info("Found {} total vacancies matching specification", vacancies.size());
 
-        // Сортируем с учетом boost и расстояния
-        vacancies = sortVacanciesByBoostAndDistance(
-                vacancies,
-                boostedVacancyIds,
-                userLatitude,
-                userLongitude
-        );
-        log.info("Found {} active boosted vacancies", boostedVacancyIds.size());
+        vacancies = sortVacanciesByBoostAndDistance(vacancies, boostedVacancyIds, userLatitude, userLongitude);
 
         boolean hasSubscription = accessService.canSearchJobs(telegramId);
         log.info("User {} subscription status: {}", telegramId, hasSubscription ? "active" : "inactive");
@@ -97,7 +90,6 @@ public class BotSearchService {
         } else {
             log.info("Processing vacancies for non-subscribed user");
 
-            // Разделяем вакансии пользователя и чужие
             List<Vacancy> userOwnVacancies = new ArrayList<>();
             List<Vacancy> otherVacancies = new ArrayList<>();
 
@@ -110,36 +102,49 @@ public class BotSearchService {
             }
             log.info("User has {} own vacancies, {} other vacancies", userOwnVacancies.size(), otherVacancies.size());
 
-            // Получаем ID бесплатных вакансий (только среди чужих)
             Set<Long> freeAccessVacancyIds = getFreeAccessVacancyIdsOptimized(
                     telegramId,
                     request.getCityId(),
                     request.getSphereId(),
                     request.getCategoryId(),
                     request.getSubcategoryId(),
-                    otherVacancies // передаем только чужие вакансии
+                    otherVacancies
             );
             log.info("User has free access to {} vacancies", freeAccessVacancyIds.size());
 
-            // 1. Сначала добавляем вакансии пользователя (всегда открыты)
+            // 1. Boosted + free чужие
+            for (Vacancy vacancy : otherVacancies) {
+                if (boostedVacancyIds.contains(vacancy.getId()) && freeAccessVacancyIds.contains(vacancy.getId())) {
+                    responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude, true, true));
+                }
+            }
+
+            // 2. Только boosted (не free — закрытые, но наверху)
+            for (Vacancy vacancy : otherVacancies) {
+                if (boostedVacancyIds.contains(vacancy.getId()) && !freeAccessVacancyIds.contains(vacancy.getId())) {
+                    responses.add(mapVacancyToResponseWithoutSubs(vacancy, userLatitude, userLongitude, false, true));
+                }
+            }
+
+            // 3. Только free (не boosted)
+            for (Vacancy vacancy : otherVacancies) {
+                if (!boostedVacancyIds.contains(vacancy.getId()) && freeAccessVacancyIds.contains(vacancy.getId())) {
+                    responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude, true, false));
+                }
+            }
+
+            // 4. Свои вакансии по дате создания (от новых к старым)
+            userOwnVacancies.sort(Comparator.comparing(Vacancy::getCreatedAt).reversed());
             for (Vacancy vacancy : userOwnVacancies) {
                 boolean isBoosted = boostedVacancyIds.contains(vacancy.getId());
                 responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude, false, isBoosted));
             }
+            log.info("Added {} own vacancies sorted by createdAt desc", userOwnVacancies.size());
 
-            // 2. Затем добавляем бесплатные чужие вакансии
+            // 5. Закрытые чужие вакансии
             for (Vacancy vacancy : otherVacancies) {
-                if (freeAccessVacancyIds.contains(vacancy.getId())) {
-                    boolean isBoosted = boostedVacancyIds.contains(vacancy.getId());
-                    responses.add(mapVacancyToResponse(vacancy, userLatitude, userLongitude, true, isBoosted));
-                }
-            }
-
-            // 3. В конце добавляем закрытые вакансии
-            for (Vacancy vacancy : otherVacancies) {
-                if (!freeAccessVacancyIds.contains(vacancy.getId())) {
-                    boolean isBoosted = boostedVacancyIds.contains(vacancy.getId());
-                    responses.add(mapVacancyToResponseWithoutSubs(vacancy, userLatitude, userLongitude, false, isBoosted));
+                if (!boostedVacancyIds.contains(vacancy.getId()) && !freeAccessVacancyIds.contains(vacancy.getId())) {
+                    responses.add(mapVacancyToResponseWithoutSubs(vacancy, userLatitude, userLongitude, false, false));
                 }
             }
         }
@@ -154,6 +159,8 @@ public class BotSearchService {
 
     @Transactional
     public SearchResultResponse<ResumeResponse> searchResumes(Long telegramId, SearchRequest request) {
+        log.info("[searchResumes] Start. telegramId={}, cityId={}, sphereId={}, categoryId={}, subcategoryId={}",
+                telegramId, request.getCityId(), request.getSphereId(), request.getCategoryId(), request.getSubcategoryId());
 
         Specification<Resume> spec = buildResumeSpecification(
                 request.getCityId(),
@@ -163,8 +170,7 @@ public class BotSearchService {
         );
 
         LocalDateTime now = LocalDateTime.now();
-        Set<Long> boostedResumeIds = resumeBoostRepository
-                .findActiveBoostResumeIds(now);
+        Set<Long> boostedResumeIds = resumeBoostRepository.findActiveBoostResumeIds(now);
 
         List<Resume> resumes = resumeRepository.findAll(spec);
 
@@ -179,8 +185,8 @@ public class BotSearchService {
                 boolean isBoosted = boostedResumeIds.contains(resume.getId());
                 responses.add(mapResumeToResponse(resume, false, isBoosted));
             }
+
         } else {
-            // Разделяем резюме пользователя и чужие
             List<Resume> userOwnResumes = new ArrayList<>();
             List<Resume> otherResumes = new ArrayList<>();
 
@@ -192,35 +198,47 @@ public class BotSearchService {
                 }
             }
 
-            // Получаем ID бесплатных резюме (только среди чужих)
             Set<Long> freeAccessResumeIds = getFreeAccessResumeIdsOptimized(
                     telegramId,
                     request.getCityId(),
                     request.getSphereId(),
                     request.getCategoryId(),
                     request.getSubcategoryId(),
-                    otherResumes // передаем только чужие резюме
+                    otherResumes
             );
 
-            // 1. Сначала резюме пользователя (всегда открыты)
+            // 1. Boosted + free чужие
+            for (Resume resume : otherResumes) {
+                if (boostedResumeIds.contains(resume.getId()) && freeAccessResumeIds.contains(resume.getId())) {
+                    responses.add(mapResumeToResponse(resume, true, true));
+                }
+            }
+
+            // 2. Только boosted (не free — закрытые, но наверху)
+            for (Resume resume : otherResumes) {
+                if (boostedResumeIds.contains(resume.getId()) && !freeAccessResumeIds.contains(resume.getId())) {
+                    responses.add(mapResumeToResponseWithoutSubs(resume, false, true));
+                }
+            }
+
+            // 3. Только free (не boosted)
+            for (Resume resume : otherResumes) {
+                if (!boostedResumeIds.contains(resume.getId()) && freeAccessResumeIds.contains(resume.getId())) {
+                    responses.add(mapResumeToResponse(resume, true, false));
+                }
+            }
+
+            // 4. Свои резюме по дате создания (от новых к старым)
+            userOwnResumes.sort(Comparator.comparing(Resume::getCreatedAt).reversed());
             for (Resume resume : userOwnResumes) {
                 boolean isBoosted = boostedResumeIds.contains(resume.getId());
                 responses.add(mapResumeToResponse(resume, false, isBoosted));
             }
 
-            // 2. Затем бесплатные чужие резюме
+            // 5. Закрытые чужие резюме
             for (Resume resume : otherResumes) {
-                if (freeAccessResumeIds.contains(resume.getId())) {
-                    boolean isBoosted = boostedResumeIds.contains(resume.getId());
-                    responses.add(mapResumeToResponse(resume, true, isBoosted));
-                }
-            }
-
-            // 3. В конце закрытые резюме
-            for (Resume resume : otherResumes) {
-                if (!freeAccessResumeIds.contains(resume.getId())) {
-                    boolean isBoosted = boostedResumeIds.contains(resume.getId());
-                    responses.add(mapResumeToResponseWithoutSubs(resume, false, isBoosted));
+                if (!boostedResumeIds.contains(resume.getId()) && !freeAccessResumeIds.contains(resume.getId())) {
+                    responses.add(mapResumeToResponseWithoutSubs(resume, false, false));
                 }
             }
         }
@@ -228,6 +246,7 @@ public class BotSearchService {
         SearchResultResponse<ResumeResponse> result = new SearchResultResponse<>();
         result.setResults(responses);
         result.setTotal(responses.size());
+        log.info("[searchResumes] Done. telegramId={}, totalResults={}", telegramId, responses.size());
 
         return result;
     }
