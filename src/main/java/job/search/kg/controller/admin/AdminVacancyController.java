@@ -28,11 +28,12 @@ public class AdminVacancyController {
 
     @GetMapping
     public ResponseEntity<Page<VacancyResponse>> getAllVacancies(
-            Pageable pageable) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
         Pageable sortedPageable = PageRequest.of(
-                pageable.getPageNumber(),
-                pageable.getPageSize(),
+                page,
+                size,
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
         Page<Vacancy> vacancies = adminVacancyService.getAllVacancies(sortedPageable);
