@@ -12,51 +12,21 @@ spring:
     password: nvIfHbpNpnUFmjIFwziFaFtQUgWhUxcf
     driver-class-name: org.postgresql.Driver
     hikari:
-      # Максимальное количество соединений в пуле
       maximum-pool-size: 20
-
-      # Минимальное количество простаивающих соединений
       minimum-idle: 5
-
-      # Максимальное время ожидания соединения (30 секунд)
       connection-timeout: 30000
-
-      # Максимальное время жизни соединения (30 минут)
-      max-lifetime: 1800000
-
-      # Время простоя соединения перед проверкой (10 минут)
-      idle-timeout: 600000
-
-      # Время ожидания валидации соединения (5 секунд)
+      max-lifetime: 600000        # уменьшить до 10 минут
+      idle-timeout: 300000        # уменьшить до 5 минут
+      keepalive-time: 60000       # пинговать каждую минуту — добавить это
       validation-timeout: 5000
-
-      # SQL запрос для проверки соединения
       connection-test-query: SELECT 1
-
-      # Автоматический коммит
       auto-commit: true
-
-      # Имя пула (для логов)
       pool-name: WorkKG-HikariPool
-
-      # Регистрация JMX для мониторинга
       register-mbeans: true
-
-      # Изоляция соединений (только чтение)
-      # read-only: false
-
-      # Дополнительные свойства для PostgreSQL
       data-source-properties:
         cachePrepStmts: true
         prepStmtCacheSize: 250
         prepStmtCacheSqlLimit: 2048
-        useServerPrepStmts: true
-        useLocalSessionState: true
-        rewriteBatchedStatements: true
-        cacheResultSetMetadata: true
-        cacheServerConfiguration: true
-        elideSetAutoCommits: true
-        maintainTimeStats: false
 
   jpa:
     hibernate:

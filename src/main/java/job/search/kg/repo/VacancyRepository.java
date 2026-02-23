@@ -48,4 +48,7 @@ public interface VacancyRepository extends JpaRepository<Vacancy, Long>, JpaSpec
 
     // VacancyRepository
     List<Vacancy> findBySubcategoryIdAndCityIdAndIsActiveTrue(Integer subcategoryId, Integer cityId);
+
+    @Query("SELECT v FROM Vacancy v JOIN FETCH v.user WHERE v.id = :id")
+    Optional<Vacancy> findByIdWithUser(@Param("id") Long id);
 }

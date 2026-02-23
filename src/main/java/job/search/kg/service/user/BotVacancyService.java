@@ -1,5 +1,6 @@
 package job.search.kg.service.user;
 
+import job.search.kg.controller.user.BotVacancyController;
 import job.search.kg.dto.request.user.CreateVacancyRequest;
 import job.search.kg.dto.response.MediaResponse;
 import job.search.kg.dto.response.VacancyResponse;
@@ -9,15 +10,23 @@ import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import job.search.kg.service.MinioStorageService;
 import job.search.kg.telegram.notification.VacancyNotificationService;
+import job.search.kg.util.ByteArrayMultipartFile;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BotVacancyService {
@@ -31,6 +40,9 @@ public class BotVacancyService {
     private final MinioStorageService minioStorageService;
     private final VacancyNotificationService notificationService;
     private final FreeAccessTrackingRepository freeAccessTrackingRepository;
+    @Autowired
+    @Qualifier("mediaUploadExecutor")
+    private Executor mediaUploadExecutor;
 
     private static final int MAX_PHOTOS = 10;
     private static final int MAX_VIDEOS = 3;
@@ -216,98 +228,78 @@ public class BotVacancyService {
         return vacancyRepository.save(vacancy);
     }
 
-    /**
-     * Добавление фото к вакансии
-     */
-    @Transactional
-    public MediaResponse addVacancyPhoto(Long vacancyId, Long telegramId, MultipartFile file) throws Exception {
-        Vacancy vacancy = validateVacancyOwnership(vacancyId, telegramId);
+    @Async("mediaUploadExecutor")
+    public void addVacancyMediaBatchAsync(Long vacancyId, Long telegramId, List<BotVacancyController.FileData> files) {
+        try {
+            // Валидация владельца
+            Vacancy vacancy = validateVacancyOwnership(vacancyId, telegramId);
 
-        long photoCount = vacancyMediaRepository.findByVacancyIdOrderByDisplayOrderAsc(vacancyId)
-                .stream()
-                .filter(m -> m.getMediaType() == VacancyMedia.MediaType.PHOTO)
-                .count();
+            List<VacancyMedia> existingMedia = vacancyMediaRepository
+                    .findByVacancyIdOrderByDisplayOrderAsc(vacancyId);
+            long currentPhotoCount = existingMedia.stream()
+                    .filter(m -> m.getMediaType() == VacancyMedia.MediaType.PHOTO).count();
+            long currentVideoCount = existingMedia.stream()
+                    .filter(m -> m.getMediaType() == VacancyMedia.MediaType.VIDEO).count();
+            int baseOrder = existingMedia.stream()
+                    .mapToInt(VacancyMedia::getDisplayOrder).max().orElse(0);
 
-        if (photoCount >= MAX_PHOTOS) {
-            throw new IllegalStateException("Достигнут максимальный лимит фотографий (" + MAX_PHOTOS + ")");
+            // Валидация файлов
+            long newPhotoCount = 0, newVideoCount = 0;
+            for (BotVacancyController.FileData fd : files) {
+                if (fd.contentType().startsWith("video/")) {
+                    if (++newVideoCount + currentVideoCount > MAX_VIDEOS)
+                        throw new IllegalStateException("Превышен лимит видео (" + MAX_VIDEOS + ")");
+                    if (fd.size() > MAX_VIDEO_SIZE)
+                        throw new IllegalArgumentException("Видео '" + fd.fileName() + "' превышает 100 МБ");
+                } else if (fd.contentType().startsWith("image/")) {
+                    if (++newPhotoCount + currentPhotoCount > MAX_PHOTOS)
+                        throw new IllegalStateException("Превышен лимит фото (" + MAX_PHOTOS + ")");
+                    if (fd.size() > MAX_PHOTO_SIZE)
+                        throw new IllegalArgumentException("Фото '" + fd.fileName() + "' превышает 10 МБ");
+                } else {
+                    throw new IllegalArgumentException("Недопустимый тип: " + fd.fileName());
+                }
+            }
+
+            // Параллельная загрузка в Minio
+            List<CompletableFuture<UploadResult>> futures = new ArrayList<>();
+            for (int i = 0; i < files.size(); i++) {
+                final BotVacancyController.FileData fd = files.get(i);
+                final int order = baseOrder + i + 1;
+                futures.add(CompletableFuture.supplyAsync(() -> {
+                    try {
+                        ByteArrayMultipartFile mockFile =
+                                new ByteArrayMultipartFile(fd.bytes(), fd.fileName(), fd.contentType());
+                        String fileUrl = minioStorageService.uploadVacancyFile(mockFile, vacancyId);
+                        return new UploadResult(fd, fileUrl, order);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Ошибка загрузки: " + fd.fileName(), e);
+                    }
+                }, mediaUploadExecutor));
+            }
+
+            List<VacancyMedia> mediaList = futures.stream()
+                    .map(f -> {
+                        try { return f.get(60, TimeUnit.SECONDS); }
+                        catch (Exception e) { throw new RuntimeException(e); }
+                    })
+                    .map(result -> VacancyMedia.builder()
+                            .vacancy(vacancy)
+                            .mediaType(result.fileData().contentType().startsWith("video/")
+                                    ? VacancyMedia.MediaType.VIDEO : VacancyMedia.MediaType.PHOTO)
+                            .fileUrl(result.fileUrl())
+                            .fileName(result.fileData().fileName())
+                            .fileSize(result.fileData().size())
+                            .displayOrder(result.order())
+                            .build())
+                    .collect(Collectors.toList());
+
+            vacancyMediaRepository.saveAll(mediaList);
+            log.info("Batch завершён: {} файлов для вакансии {}", files.size(), vacancyId);
+
+        } catch (Exception e) {
+            log.error("Ошибка batch загрузки для вакансии {}", vacancyId, e);
         }
-
-        if (file.getSize() > MAX_PHOTO_SIZE) {
-            throw new IllegalArgumentException("Размер фото превышает максимально допустимый (10 МБ)");
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Недопустимый тип файла. Разрешены только изображения");
-        }
-
-        String fileUrl = minioStorageService.uploadVacancyFile(file, vacancyId);
-
-        int nextOrder = vacancyMediaRepository.findByVacancyIdOrderByDisplayOrderAsc(vacancyId)
-                .stream()
-                .mapToInt(VacancyMedia::getDisplayOrder)
-                .max()
-                .orElse(0) + 1;
-
-        VacancyMedia media = VacancyMedia.builder()
-                .vacancy(vacancy)
-                .mediaType(VacancyMedia.MediaType.PHOTO)
-                .fileUrl(fileUrl)
-                .fileName(file.getOriginalFilename())
-                .fileSize(file.getSize())
-                .displayOrder(nextOrder)
-                .build();
-
-        media = vacancyMediaRepository.save(media);
-
-        return mapMediaToResponse(media);
-    }
-
-    /**
-     * Добавление видео к вакансии
-     */
-    @Transactional
-    public MediaResponse addVacancyVideo(Long vacancyId, Long telegramId, MultipartFile file) throws Exception {
-        Vacancy vacancy = validateVacancyOwnership(vacancyId, telegramId);
-
-        long videoCount = vacancyMediaRepository.findByVacancyIdOrderByDisplayOrderAsc(vacancyId)
-                .stream()
-                .filter(m -> m.getMediaType() == VacancyMedia.MediaType.VIDEO)
-                .count();
-
-        if (videoCount >= MAX_VIDEOS) {
-            throw new IllegalStateException("Достигнут максимальный лимит видео (" + MAX_VIDEOS + ")");
-        }
-
-        if (file.getSize() > MAX_VIDEO_SIZE) {
-            throw new IllegalArgumentException("Размер видео превышает максимально допустимый (100 МБ)");
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("video/")) {
-            throw new IllegalArgumentException("Недопустимый тип файла. Разрешены только видео");
-        }
-
-        String fileUrl = minioStorageService.uploadVacancyFile(file, vacancyId);
-
-        int nextOrder = vacancyMediaRepository.findByVacancyIdOrderByDisplayOrderAsc(vacancyId)
-                .stream()
-                .mapToInt(VacancyMedia::getDisplayOrder)
-                .max()
-                .orElse(0) + 1;
-
-        VacancyMedia media = VacancyMedia.builder()
-                .vacancy(vacancy)
-                .mediaType(VacancyMedia.MediaType.VIDEO)
-                .fileUrl(fileUrl)
-                .fileName(file.getOriginalFilename())
-                .fileSize(file.getSize())
-                .displayOrder(nextOrder)
-                .build();
-
-        media = vacancyMediaRepository.save(media);
-
-        return mapMediaToResponse(media);
     }
 
     /**
@@ -356,7 +348,7 @@ public class BotVacancyService {
     }
 
     private Vacancy validateVacancyOwnership(Long vacancyId, Long telegramId) {
-        Vacancy vacancy = vacancyRepository.findById(vacancyId)
+        Vacancy vacancy = vacancyRepository.findByIdWithUser(vacancyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Вакансия не найдена"));
 
         if (!vacancy.getUser().getTelegramId().equals(telegramId)) {
@@ -402,4 +394,6 @@ public class BotVacancyService {
                 .uploadedAt(media.getUploadedAt())
                 .build();
     }
+    private record UploadResult(BotVacancyController.FileData fileData, String fileUrl, int order) {}
+
 }

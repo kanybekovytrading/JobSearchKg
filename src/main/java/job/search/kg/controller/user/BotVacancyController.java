@@ -13,15 +13,20 @@ import job.search.kg.service.user.BotAccessService;
 import job.search.kg.service.user.BotSearchService;
 import job.search.kg.service.user.BotVacancyService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/bot/vacancies")
 @RequiredArgsConstructor
@@ -110,51 +115,31 @@ public class BotVacancyController {
         return ResponseEntity.ok(botVacancyService.updateVacancy(vacancyId, telegramId, request));
     }
 
-    /**
-     * Загрузить фото к вакансии
-     * POST /api/bot/vacancies/{vacancyId}/media/photo
-     */
-    @PostMapping(value="/{vacancyId}/media/photo",  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<MediaResponse> uploadPhoto(
+    @PostMapping(value = "/{vacancyId}/media/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, String>> uploadMediaBatch(
             @PathVariable Long vacancyId,
             @RequestParam("telegramId") Long telegramId,
-            @Parameter(
-                    description = "Фото файл (jpg, png, max 10MB)",
-                    required = true
-            )
-            @RequestPart("file") MultipartFile file
+            @RequestPart("files") List<MultipartFile> files
     ) {
         try {
-            MediaResponse response = vacancyService.addVacancyPhoto(vacancyId, telegramId, file);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
+            // Читаем байты ДО того как вернём ответ — потом файлы недоступны
+            List<FileData> fileDataList = files.stream()
+                    .map(file -> {
+                        try {
+                            return new FileData(file.getBytes(), file.getOriginalFilename(),
+                                    file.getContentType(), file.getSize());
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    })
+                    .collect(Collectors.toList());
 
-    /**
-     * Загрузить видео к вакансии
-     * POST /api/bot/vacancies/{vacancyId}/media/video
-     */
-    @PostMapping(value = "/{vacancyId}/media/video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<MediaResponse> uploadVideo(
-            @PathVariable Long vacancyId,
-            @RequestParam("telegramId") Long telegramId,
-            @Parameter(
-                    description = "Видео файл (mp4, mov, max 100MB)",
-                    required = true
-            )
-            @RequestPart("file") MultipartFile file
-    ) {
-        try {
-            MediaResponse response = vacancyService.addVacancyVideo(vacancyId, telegramId, file);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // Запускаем в фоне и сразу отвечаем
+            vacancyService.addVacancyMediaBatchAsync(vacancyId, telegramId, fileDataList);
+            return ResponseEntity.accepted().body(Map.of("message", "Файлы загружаются"));
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -174,5 +159,6 @@ public class BotVacancyController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+    public record FileData(byte[] bytes, String fileName, String contentType, long size) {}
 
 }
