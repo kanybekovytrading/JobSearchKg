@@ -34,4 +34,7 @@ public interface ResumeRepository extends JpaRepository<Resume, Long>, JpaSpecif
 
     List<Resume> findByUserAndIsActiveTrue(User user);
 
+    @Query("SELECT r FROM Resume r JOIN FETCH r.user WHERE r.id = :id")
+    Optional<Resume> findByIdWithUser(@Param("id") Long id);
+
 }

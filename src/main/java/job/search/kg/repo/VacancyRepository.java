@@ -51,4 +51,12 @@ public interface VacancyRepository extends JpaRepository<Vacancy, Long>, JpaSpec
 
     @Query("SELECT v FROM Vacancy v JOIN FETCH v.user WHERE v.id = :id")
     Optional<Vacancy> findByIdWithUser(@Param("id") Long id);
+
+    @Query("""
+    SELECT v FROM Vacancy v WHERE v.user = :user
+    ORDER BY
+        CASE WHEN v.isActive = true THEN 0 ELSE 1 END,
+        v.createdAt DESC
+""")
+    List<Vacancy> findByUserOrderByStatusAndDate(@Param("user") User user);
 }

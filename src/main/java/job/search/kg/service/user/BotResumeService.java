@@ -1,5 +1,6 @@
 package job.search.kg.service.user;
 
+import job.search.kg.controller.user.BotVacancyController;
 import job.search.kg.dto.request.user.CreateResumeRequest;
 import job.search.kg.dto.response.MediaResponse;
 import job.search.kg.dto.response.user.ResumeResponse;
@@ -9,14 +10,22 @@ import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import job.search.kg.service.MinioStorageService;
 import job.search.kg.telegram.notification.ResumeNotificationService;
+import job.search.kg.util.ByteArrayMultipartFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,6 +42,9 @@ public class BotResumeService {
     private final MinioStorageService minioStorageService;
     private final FreeAccessTrackingRepository freeAccessTrackingRepository;
     private final ResumeNotificationService resumeNotificationService;
+    @Autowired
+    @Qualifier("mediaUploadExecutor")
+    private Executor mediaUploadExecutor;
 
     private static final int MAX_PHOTOS = 10;
     private static final int MAX_VIDEOS = 3;
@@ -196,110 +208,79 @@ public class BotResumeService {
         return resumeRepository.save(resume);
     }
 
-    /**
-     * Добавление фото к резюме
-     */
-    @Transactional
-    public MediaResponse addResumePhoto(Long resumeId, Long telegramId, MultipartFile file) throws Exception {
-        Resume resume = validateResumeOwnership(resumeId, telegramId);
+    @Async("mediaUploadExecutor")
+    public void addResumeMediaBatchAsync(Long resumeId, Long telegramId, List<BotVacancyController.FileData> files) {
+        try {
+            Resume resume = validateResumeOwnership(resumeId, telegramId);
 
-        // Проверка лимита фото
-        long photoCount = resumeMediaRepository.findByResumeIdOrderByDisplayOrderAsc(resumeId)
-                .stream()
-                .filter(m -> m.getMediaType() == ResumeMedia.MediaType.PHOTO)
-                .count();
+            List<ResumeMedia> existingMedia = resumeMediaRepository
+                    .findByResumeIdOrderByDisplayOrderAsc(resumeId);
+            long currentPhotoCount = existingMedia.stream()
+                    .filter(m -> m.getMediaType() == ResumeMedia.MediaType.PHOTO).count();
+            long currentVideoCount = existingMedia.stream()
+                    .filter(m -> m.getMediaType() == ResumeMedia.MediaType.VIDEO).count();
+            int baseOrder = existingMedia.stream()
+                    .mapToInt(ResumeMedia::getDisplayOrder).max().orElse(0);
 
-        if (photoCount >= MAX_PHOTOS) {
-            throw new IllegalStateException("Достигнут максимальный лимит фотографий (" + MAX_PHOTOS + ")");
+            // Валидация
+            long newPhotoCount = 0, newVideoCount = 0;
+            for (BotVacancyController.FileData fd : files) {
+                if (fd.contentType().startsWith("video/")) {
+                    if (++newVideoCount + currentVideoCount > MAX_VIDEOS)
+                        throw new IllegalStateException("Превышен лимит видео (" + MAX_VIDEOS + ")");
+                    if (fd.size() > MAX_VIDEO_SIZE)
+                        throw new IllegalArgumentException("Видео '" + fd.fileName() + "' превышает 100 МБ");
+                } else if (fd.contentType().startsWith("image/")) {
+                    if (++newPhotoCount + currentPhotoCount > MAX_PHOTOS)
+                        throw new IllegalStateException("Превышен лимит фото (" + MAX_PHOTOS + ")");
+                    if (fd.size() > MAX_PHOTO_SIZE)
+                        throw new IllegalArgumentException("Фото '" + fd.fileName() + "' превышает 10 МБ");
+                } else {
+                    throw new IllegalArgumentException("Недопустимый тип: " + fd.fileName());
+                }
+            }
+
+            // Параллельная загрузка в Minio
+            List<CompletableFuture<BotVacancyService.UploadResult>> futures = new ArrayList<>();
+            for (int i = 0; i < files.size(); i++) {
+                final BotVacancyController.FileData fd = files.get(i);
+                final int order = baseOrder + i + 1;
+                futures.add(CompletableFuture.supplyAsync(() -> {
+                    try {
+                        ByteArrayMultipartFile mockFile =
+                                new ByteArrayMultipartFile(fd.bytes(), fd.fileName(), fd.contentType());
+                        String fileUrl = minioStorageService.uploadResumeFile(mockFile, resumeId);
+                        return new BotVacancyService.UploadResult(fd, fileUrl, order);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Ошибка загрузки: " + fd.fileName(), e);
+                    }
+                }, mediaUploadExecutor));
+            }
+
+            List<ResumeMedia> mediaList = futures.stream()
+                    .map(f -> {
+                        try { return f.get(60, TimeUnit.SECONDS); }
+                        catch (Exception e) { throw new RuntimeException(e); }
+                    })
+                    .map(result -> ResumeMedia.builder()
+                            .resume(resume)
+                            .mediaType(result.fileData().contentType().startsWith("video/")
+                                    ? ResumeMedia.MediaType.VIDEO
+                                    : ResumeMedia.MediaType.PHOTO)
+                            .fileUrl(result.fileUrl())
+                            .fileName(result.fileData().fileName())
+                            .fileSize(result.fileData().size())
+                            .displayOrder(result.order())
+                            .build())
+                    .collect(Collectors.toList());
+
+            resumeMediaRepository.saveAll(mediaList);
+            log.info("Batch завершён: {} файлов для резюме {}", files.size(), resumeId);
+
+        } catch (Exception e) {
+            log.error("Ошибка batch загрузки для резюме {}", resumeId, e);
         }
-
-        // Проверка размера файла
-        if (file.getSize() > MAX_PHOTO_SIZE) {
-            throw new IllegalArgumentException("Размер фото превышает максимально допустимый (10 МБ)");
-        }
-
-        // Проверка типа файла
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Недопустимый тип файла. Разрешены только изображения");
-        }
-
-        // Загрузка в MinIO
-        String fileUrl = minioStorageService.uploadResumeFile(file, resumeId);
-
-        // Сохранение в БД
-        int nextOrder = resumeMediaRepository.findByResumeIdOrderByDisplayOrderAsc(resumeId)
-                .stream()
-                .mapToInt(ResumeMedia::getDisplayOrder)
-                .max()
-                .orElse(0) + 1;
-
-        ResumeMedia media = ResumeMedia.builder()
-                .resume(resume)
-                .mediaType(ResumeMedia.MediaType.PHOTO)
-                .fileUrl(fileUrl)
-                .fileName(file.getOriginalFilename())
-                .fileSize(file.getSize())
-                .displayOrder(nextOrder)
-                .build();
-
-        media = resumeMediaRepository.save(media);
-
-        return mapMediaToResponse(media);
     }
-
-    /**
-     * Добавление видео к резюме
-     */
-    @Transactional
-    public MediaResponse addResumeVideo(Long resumeId, Long telegramId, MultipartFile file) throws Exception {
-        Resume resume = validateResumeOwnership(resumeId, telegramId);
-
-        // Проверка лимита видео
-        long videoCount = resumeMediaRepository.findByResumeIdOrderByDisplayOrderAsc(resumeId)
-                .stream()
-                .filter(m -> m.getMediaType() == ResumeMedia.MediaType.VIDEO)
-                .count();
-
-        if (videoCount >= MAX_VIDEOS) {
-            throw new IllegalStateException("Достигнут максимальный лимит видео (" + MAX_VIDEOS + ")");
-        }
-
-        // Проверка размера файла
-        if (file.getSize() > MAX_VIDEO_SIZE) {
-            throw new IllegalArgumentException("Размер видео превышает максимально допустимый (100 МБ)");
-        }
-
-        // Проверка типа файла
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("video/")) {
-            throw new IllegalArgumentException("Недопустимый тип файла. Разрешены только видео");
-        }
-
-        // Загрузка в MinIO
-        String fileUrl = minioStorageService.uploadResumeFile(file, resumeId);
-
-        // Сохранение в БД
-        int nextOrder = resumeMediaRepository.findByResumeIdOrderByDisplayOrderAsc(resumeId)
-                .stream()
-                .mapToInt(ResumeMedia::getDisplayOrder)
-                .max()
-                .orElse(0) + 1;
-
-        ResumeMedia media = ResumeMedia.builder()
-                .resume(resume)
-                .mediaType(ResumeMedia.MediaType.VIDEO)
-                .fileUrl(fileUrl)
-                .fileName(file.getOriginalFilename())
-                .fileSize(file.getSize())
-                .displayOrder(nextOrder)
-                .build();
-
-        media = resumeMediaRepository.save(media);
-
-        return mapMediaToResponse(media);
-    }
-
     /**
      * Получение всех медиа файлов резюме
      */
@@ -348,7 +329,7 @@ public class BotResumeService {
     }
 
     private Resume validateResumeOwnership(Long resumeId, Long telegramId) {
-        Resume resume = resumeRepository.findById(resumeId)
+        Resume resume = resumeRepository.findByIdWithUser(resumeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Резюме не найдено"));
 
         if (!resume.getUser().getTelegramId().equals(telegramId)) {

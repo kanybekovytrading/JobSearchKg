@@ -129,7 +129,7 @@ public class BotVacancyService {
         User user = userRepository.findByTelegramId(telegramId)
                 .orElseThrow(() -> new ResourceNotFoundException("Пользователь не найден"));
 
-        return vacancyRepository.findByUser(user).stream()
+        return vacancyRepository.findByUserOrderByStatusAndDate(user).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -394,6 +394,6 @@ public class BotVacancyService {
                 .uploadedAt(media.getUploadedAt())
                 .build();
     }
-    private record UploadResult(BotVacancyController.FileData fileData, String fileUrl, int order) {}
+    public record UploadResult(BotVacancyController.FileData fileData, String fileUrl, int order) {}
 
 }
