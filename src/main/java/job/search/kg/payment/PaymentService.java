@@ -296,9 +296,9 @@ public class PaymentService {
     private int getSubscriptionCost(Subscription.PlanType planType) {
         return switch (planType) {
             case THREE_DAYS -> 169;
-            case ONE_WEEK -> 273;      // 150 сом = 1500 баллов
-            case ONE_MONTH -> 802;     // 500 сом = 5000 баллов
-            case THREE_MONTHS -> 1000; // 1200 сом = 12000 баллов
+            case ONE_WEEK -> 149;      // 150 сом = 1500 баллов
+            case ONE_MONTH -> 290;     // 500 сом = 5000 баллов
+            case THREE_MONTHS -> 490; // 1200 сом = 12000 баллов
         };
     }
 
