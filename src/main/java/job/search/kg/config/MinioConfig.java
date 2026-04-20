@@ -17,11 +17,15 @@ public class MinioConfig {
     @Value("${minio.secret-key}")
     private String secretKey;
 
+    @Value("${minio.region}")
+    private String region;
+
     @Bean
     public MinioClient minioClient() {
         return MinioClient.builder()
                 .endpoint(minioUrl)
                 .credentials(accessKey, secretKey)
+                .region(region)
                 .build();
     }
 

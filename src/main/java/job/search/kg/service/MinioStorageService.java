@@ -19,12 +19,8 @@ public class MinioStorageService {
 
     private final MinioClient minioClient;
 
-    @Value("${minio.bucket.resumes}")
+    @Value("${minio.bucket}")
     private String resumesBucket;
-
-    @Value("${minio.bucket.vacancies}")
-    private String vacanciesBucket;
-
     @Value("${minio.url}")
     private String minioUrl;
 
@@ -41,7 +37,7 @@ public class MinioStorageService {
      */
     public String uploadVacancyFile(MultipartFile file, Long vacancyId) throws Exception {
         String fileName = generateFileName(file.getOriginalFilename(), vacancyId);
-        return uploadFile(file, vacanciesBucket, fileName);
+        return uploadFile(file, resumesBucket, fileName);
     }
 
     /**
@@ -184,8 +180,6 @@ public class MinioStorageService {
 
         if (fileUrl.contains("/" + resumesBucket + "/")) {
             return resumesBucket;
-        } else if (fileUrl.contains("/" + vacanciesBucket + "/")) {
-            return vacanciesBucket;
         }
 
         return null;
