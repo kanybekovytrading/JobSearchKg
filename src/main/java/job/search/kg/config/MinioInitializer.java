@@ -14,20 +14,14 @@ public class MinioInitializer implements CommandLineRunner {
 
     private final MinioClient minioClient;
 
-    @Value("${minio.bucket.resumes}")
+    @Value("${minio.bucket}")
     private String resumesBucket;
-
-    @Value("${minio.bucket.vacancies}")
-    private String vacanciesBucket;
 
     @Override
     public void run(String... args) throws Exception {
         createBucketIfNotExists(resumesBucket);
-        createBucketIfNotExists(vacanciesBucket);
-
         // Устанавливаем публичную политику для обоих бакетов
         setPublicPolicy(resumesBucket);
-        setPublicPolicy(vacanciesBucket);
     }
 
     private void createBucketIfNotExists(String bucketName) {
