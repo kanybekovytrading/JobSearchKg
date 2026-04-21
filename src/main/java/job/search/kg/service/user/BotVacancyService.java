@@ -230,6 +230,7 @@ public class BotVacancyService {
 
     @Async("mediaUploadExecutor")
     public void addVacancyMediaBatchAsync(Long vacancyId, Long telegramId, List<BotVacancyController.FileData> files) {
+        log.info("=== ASYNC СТАРТОВАЛ, поток: {}", Thread.currentThread().getName()); // ← добавь
         try {
             // Валидация владельца
             Vacancy vacancy = validateVacancyOwnership(vacancyId, telegramId);
@@ -387,7 +388,7 @@ public class BotVacancyService {
         return MediaResponse.builder()
                 .id(media.getId())
                 .mediaType(media.getMediaType().name())
-                .fileUrl(media.getFileUrl())
+                .fileUrl(minioStorageService.resolveUrl(media.getFileUrl()))
                 .fileName(media.getFileName())
                 .fileSize(media.getFileSize())
                 .displayOrder(media.getDisplayOrder())

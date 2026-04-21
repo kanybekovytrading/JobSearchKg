@@ -11,6 +11,7 @@ import job.search.kg.entity.*;
 import job.search.kg.exceptions.ResourceNotFoundException;
 import job.search.kg.repo.*;
 import job.search.kg.service.LocationService;
+import job.search.kg.service.MinioStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -43,6 +44,7 @@ public class BotSearchService {
     private final FreeAccessTrackingService freeAccessTrackingService;
     private final FreeAccessTrackingRepository freeAccessTrackingRepository;
     private final LocationService locationService;
+    private final MinioStorageService minioStorageService;
 
     private static final int FREE_DAILY_LIMIT = 3;
 
@@ -744,7 +746,7 @@ public class BotSearchService {
         return MediaResponse.builder()
                 .id(media.getId())
                 .mediaType(media.getMediaType().name())
-                .fileUrl(media.getFileUrl())
+                .fileUrl(minioStorageService.resolveUrl(media.getFileUrl()))
                 .fileName(media.getFileName())
                 .fileSize(media.getFileSize())
                 .displayOrder(media.getDisplayOrder())
@@ -756,7 +758,7 @@ public class BotSearchService {
         return MediaResponse.builder()
                 .id(media.getId())
                 .mediaType(media.getMediaType().name())
-                .fileUrl(media.getFileUrl())
+                .fileUrl(minioStorageService.resolveUrl(media.getFileUrl()))
                 .fileName(media.getFileName())
                 .fileSize(media.getFileSize())
                 .displayOrder(media.getDisplayOrder())

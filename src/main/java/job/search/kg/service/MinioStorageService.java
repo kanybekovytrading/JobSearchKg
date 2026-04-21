@@ -20,7 +20,7 @@ public class MinioStorageService {
     private final MinioClient minioClient;
 
     @Value("${minio.bucket}")
-    private String resumesBucket;
+    private String bucket;
     @Value("${minio.url}")
     private String minioUrl;
 
@@ -29,7 +29,7 @@ public class MinioStorageService {
      */
     public String uploadResumeFile(MultipartFile file, Long resumeId) throws Exception {
         String fileName = generateFileName(file.getOriginalFilename(), resumeId);
-        return uploadFile(file, resumesBucket, fileName);
+        return uploadFile(file, fileName);
     }
 
     /**
@@ -37,7 +37,48 @@ public class MinioStorageService {
      */
     public String uploadVacancyFile(MultipartFile file, Long vacancyId) throws Exception {
         String fileName = generateFileName(file.getOriginalFilename(), vacancyId);
-        return uploadFile(file, resumesBucket, fileName);
+        return uploadFile(file, fileName);
+    }
+
+    /**
+     * Разрешает значение в presigned URL.
+     * Если значение — полный URL (legacy) — извлекает objectKey и генерирует presigned.
+     * Если значение — objectKey — сразу генерирует presigned URL.
+     */
+    public String resolveUrl(String value) {
+        if (value == null || value.isBlank()) return null;
+        if (value.startsWith("http")) {
+            // Legacy: полный URL — извлекаем objectKey
+            String marker = "/" + bucket + "/";
+            int idx = value.indexOf(marker);
+            if (idx >= 0) {
+                String objectKey = value.substring(idx + marker.length());
+                int qIdx = objectKey.indexOf('?');
+                if (qIdx >= 0) objectKey = objectKey.substring(0, qIdx);
+                return getPresignedUrl(objectKey);
+            }
+            return value; // внешний URL, возвращаем как есть
+        }
+        return getPresignedUrl(value);
+    }
+
+    /**
+     * Генерирует временную presigned ссылку (действует 1 час)
+     */
+    public String getPresignedUrl(String objectKey) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .bucket(bucket)
+                            .object(objectKey)
+                            .method(Method.GET)
+                            .expiry(1, TimeUnit.HOURS)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("❌ Error generating presigned URL: {}/{}", bucket, objectKey, e);
+            throw new RuntimeException("Could not generate file URL");
+        }
     }
 
     /**
@@ -54,26 +95,6 @@ public class MinioStorageService {
             log.info("🗑️ File deleted successfully: {}/{}", bucketName, objectName);
         } catch (Exception e) {
             log.error("❌ Error deleting file: {}/{}", bucketName, objectName, e);
-            throw e;
-        }
-    }
-
-    /**
-     * Получение временной ссылки на файл (presigned URL)
-     * Это ПУБЛИЧНАЯ ссылка, которая работает 7 дней
-     */
-    public String getPresignedUrl(String bucketName, String objectName) throws Exception {
-        try {
-            return minioClient.getPresignedObjectUrl(
-                    GetPresignedObjectUrlArgs.builder()
-                            .method(Method.GET)
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .expiry(7, TimeUnit.DAYS) // Ссылка действительна 7 дней
-                            .build()
-            );
-        } catch (Exception e) {
-            log.error("❌ Error generating presigned URL: {}/{}", bucketName, objectName, e);
             throw e;
         }
     }
@@ -96,23 +117,22 @@ public class MinioStorageService {
     }
 
     /**
-     * Загрузка файла в MinIO/DigitalOcean Spaces
+     * Загрузка файла в хранилище
      */
-    private String uploadFile(MultipartFile file, String bucketName, String fileName) throws Exception {
+    private String uploadFile(MultipartFile file, String fileName) throws Exception {
         try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(
                     PutObjectArgs.builder()
-                            .bucket(bucketName)
+                            .bucket(bucket)
                             .object(fileName)
                             .stream(inputStream, file.getSize(), -1)
                             .contentType(file.getContentType())
                             .build()
             );
 
-            log.info("✅ File uploaded successfully: {}/{}", bucketName, fileName);
+            log.info("✅ File uploaded successfully: {}/{}", bucket, fileName);
 
-            // Возвращаем URL файла
-            return String.format("%s/%s/%s", minioUrl, bucketName, fileName);
+            return String.format("%s/%s/%s", minioUrl, bucket, fileName);
 
         } catch (Exception e) {
             log.error("❌ Error uploading file: {}", fileName, e);
@@ -122,7 +142,7 @@ public class MinioStorageService {
 
     /**
      * Генерация уникального имени файла
-     * Формат: resumeId/uuid.extension
+     * Формат: entityId/uuid.extension
      */
     private String generateFileName(String originalFilename, Long entityId) {
         String extension = "";
@@ -134,7 +154,7 @@ public class MinioStorageService {
 
     /**
      * Извлечение имени объекта из URL
-     * Пример URL: https://fra1.digitaloceanspaces.com/resumes/123/uuid.jpg
+     * Пример URL: https://t3.storageapi.dev/bucket/123/uuid.jpg
      * Возвращает: 123/uuid.jpg
      */
     public String extractObjectNameFromUrl(String fileUrl) {
@@ -143,18 +163,12 @@ public class MinioStorageService {
         }
 
         try {
-            // Убираем протокол и домен
             String[] parts = fileUrl.replace("https://", "").replace("http://", "").split("/");
-
-            // parts[0] = домен (fra1.digitaloceanspaces.com)
-            // parts[1] = bucket (resumes или vacancies)
-            // parts[2+] = путь к файлу (entityId/filename)
 
             if (parts.length < 3) {
                 return null;
             }
 
-            // Собираем путь: entityId/filename
             StringBuilder objectName = new StringBuilder();
             for (int i = 2; i < parts.length; i++) {
                 if (i > 2) objectName.append("/");
@@ -170,16 +184,14 @@ public class MinioStorageService {
 
     /**
      * Извлечение имени bucket из URL
-     * Пример URL: https://fra1.digitaloceanspaces.com/resumes/123/uuid.jpg
-     * Возвращает: resumes
      */
     public String extractBucketFromUrl(String fileUrl) {
         if (fileUrl == null || fileUrl.isEmpty()) {
             return null;
         }
 
-        if (fileUrl.contains("/" + resumesBucket + "/")) {
-            return resumesBucket;
+        if (fileUrl.contains("/" + bucket + "/")) {
+            return bucket;
         }
 
         return null;

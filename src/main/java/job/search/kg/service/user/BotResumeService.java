@@ -369,7 +369,7 @@ public class BotResumeService {
         return MediaResponse.builder()
                 .id(media.getId())
                 .mediaType(media.getMediaType().name())
-                .fileUrl(media.getFileUrl())
+                .fileUrl(minioStorageService.resolveUrl(media.getFileUrl()))
                 .fileName(media.getFileName())
                 .fileSize(media.getFileSize())
                 .displayOrder(media.getDisplayOrder())
