@@ -24,6 +24,7 @@ import java.util.UUID;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final FinikWebhookService finikWebhookService;
 
     @SneakyThrows
     @PostMapping("/create/{telegramId}")

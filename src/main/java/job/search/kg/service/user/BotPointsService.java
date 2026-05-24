@@ -175,8 +175,8 @@ public class BotPointsService {
         );
 
         try {
-            // Создаем запрос на вывод через WithdrawalService
-            withdrawalService.createWithdrawal(
+            // Создаем запрос на вывод через WithdrawalService (REQUIRES_NEW — своя транзакция)
+            var withdrawal = withdrawalService.createWithdrawal(
                     telegramId,
                     serviceId,
                     recipientPhone,
@@ -184,8 +184,18 @@ public class BotPointsService {
                     "Обмен баллов на деньги",
                     pointsTransactionId
             );
+            if (withdrawal.getStatus() == job.search.kg.entity.Withdrawal.WithdrawalStatus.FAILED) {
+                addPoints(
+                        telegramId,
+                        pointsAmount,
+                        PointsTransaction.TransactionType.REFUND,
+                        "Возврат баллов после неудачного вывода"
+                );
+                String msg = getWithdrawalFailedMessage(user.getLanguage(), amountInSoms);
+                telegramService.sendMessage(user.getTelegramId(), msg);
+            }
         } catch (Exception e) {
-            // В случае ошибки возвращаем баллы
+            // Ошибка до создания записи вывода (неверный банк, получатель не найден и т.д.)
             addPoints(
                     telegramId,
                     pointsAmount,

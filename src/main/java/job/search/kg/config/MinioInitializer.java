@@ -34,6 +34,18 @@ public class MinioInitializer implements CommandLineRunner {
                 minioClient.makeBucket(
                         MakeBucketArgs.builder().bucket(bucketName).build()
                 );
+                log.info("✅ Created bucket '{}'", bucketName);
+            } else {
+                log.info("✅ Bucket '{}' already exists", bucketName);
+            }
+        } catch (io.minio.errors.ErrorResponseException e) {
+            // On managed S3 providers (e.g. Tigris), buckets are pre-provisioned and
+            // bucket-management API calls return 403. Assume bucket exists and continue.
+            if ("AccessDenied".equals(e.errorResponse().code()) || e.response().code() == 403) {
+                log.warn("⚠️ Cannot check/create bucket '{}' (Access Denied) — assuming it exists", bucketName);
+            } else {
+                log.error("❌ Error creating bucket '{}'", bucketName, e);
+                throw new RuntimeException(e);
             }
         } catch (Exception e) {
             log.error("❌ Error creating bucket '{}'", bucketName, e);

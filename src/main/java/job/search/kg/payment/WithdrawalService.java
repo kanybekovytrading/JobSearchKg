@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -196,7 +197,7 @@ public class WithdrawalService {
     /**
      * ✅ СОЗДАНИЕ ВЫВОДА для конкретного банка
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Withdrawal createWithdrawal(
             Long telegramId,
             String serviceId,
@@ -331,12 +332,10 @@ public class WithdrawalService {
 
         } catch (Exception e) {
             withdrawal.setStatus(Withdrawal.WithdrawalStatus.FAILED);
-            log.info("WITHDRAWAL ERROR MSG{}", e.getMessage());
             withdrawal.setErrorMessage(e.getMessage());
-            withdrawalRepository.save(withdrawal);
-
+            withdrawal = withdrawalRepository.save(withdrawal);
             log.error("Failed to process withdrawal: transactionId={}", transactionId, e);
-            throw e;
+            return withdrawal;
         }
     }
 
