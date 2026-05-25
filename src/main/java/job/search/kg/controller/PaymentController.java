@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -60,7 +61,7 @@ public class PaymentController {
      * Вызывается ботом после редиректа с Finik.
      * Проверяет статус платежа напрямую и сразу создаёт подписку — не ждёт вебхука.
      */
-    @SneakyThrows
+    @Transactional
     @PostMapping("/confirm/{paymentId}")
     public ResponseEntity<Map<String, Object>> confirmPayment(@PathVariable String paymentId) {
         Payment payment = paymentRepository.findByPaymentId(paymentId)
@@ -70,15 +71,35 @@ public class PaymentController {
             return ResponseEntity.notFound().build();
         }
 
-        // Уже обработан
+        // Уже активирован
         if (payment.getStatus() == Payment.PaymentStatus.SUCCESS) {
-            return ResponseEntity.ok(Map.of("status", "SUCCESS", "subscriptionCreated", false));
+            return ResponseEntity.ok(Map.of("status", "SUCCESS", "subscriptionCreated", true));
         }
 
-        // Статус из нашей БД — вебхук от Finik обновит его когда придёт
+        // Временно: активируем сразу после редиректа, не ждём вебхук
+        if (payment.getStatus() == Payment.PaymentStatus.PENDING
+                || payment.getStatus() == Payment.PaymentStatus.EXPIRED) {
+            payment.setStatus(Payment.PaymentStatus.SUCCESS);
+            payment.setCompletedAt(java.time.LocalDateTime.now());
+            paymentRepository.save(payment);
+
+            if (payment.getPlanType() != null) {
+                botSubscriptionService.createSubscription(
+                        payment.getUser().getTelegramId(),
+                        payment.getPlanType(),
+                        payment.getPaymentId()
+                );
+            }
+
+            log.info("Subscription auto-activated on confirm: paymentId={}, user={}",
+                    paymentId, payment.getUser().getTelegramId());
+
+            return ResponseEntity.ok(Map.of("status", "SUCCESS", "subscriptionCreated", true));
+        }
+
         return ResponseEntity.ok(Map.of(
                 "status", payment.getStatus().name(),
-                "subscriptionCreated", payment.getStatus() == Payment.PaymentStatus.SUCCESS
+                "subscriptionCreated", false
         ));
     }
 
