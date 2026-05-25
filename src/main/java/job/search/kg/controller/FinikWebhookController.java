@@ -81,9 +81,6 @@ public class FinikWebhookController {
             @RequestHeader Map<String, String> headers
     ) {
         try {
-            log.info("Received webhook: transactionId={}, status={}",
-                    webhook.getTransactionId(), webhook.getStatus());
-            log.info("All webhook headers: {}", headers);
 
             // Обрабатываем webhook
             webhookService.processWebhook(webhook);

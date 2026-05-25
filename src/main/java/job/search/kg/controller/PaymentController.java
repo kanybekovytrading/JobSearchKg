@@ -5,8 +5,11 @@ import job.search.kg.dto.request.user.CreatePaymentRequest;
 import job.search.kg.dto.response.user.CreatePaymentResponse;
 import job.search.kg.dto.response.user.PaymentResponse;
 import job.search.kg.dto.response.user.WebhookData;
+import job.search.kg.entity.Payment;
 import job.search.kg.payment.FinikWebhookService;
 import job.search.kg.payment.PaymentService;
+import job.search.kg.repo.PaymentRepository;
+import job.search.kg.service.user.BotSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +28,8 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final FinikWebhookService finikWebhookService;
+    private final PaymentRepository paymentRepository;
+    private final BotSubscriptionService botSubscriptionService;
 
     @SneakyThrows
     @PostMapping("/create/{telegramId}")
@@ -51,6 +56,32 @@ public class PaymentController {
      * Получение информации о платеже
      * GET /api/payments/{paymentId}
      */
+    /**
+     * Вызывается ботом после редиректа с Finik.
+     * Проверяет статус платежа напрямую и сразу создаёт подписку — не ждёт вебхука.
+     */
+    @SneakyThrows
+    @PostMapping("/confirm/{paymentId}")
+    public ResponseEntity<Map<String, Object>> confirmPayment(@PathVariable String paymentId) {
+        Payment payment = paymentRepository.findByPaymentId(paymentId)
+                .orElse(null);
+
+        if (payment == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Уже обработан
+        if (payment.getStatus() == Payment.PaymentStatus.SUCCESS) {
+            return ResponseEntity.ok(Map.of("status", "SUCCESS", "subscriptionCreated", false));
+        }
+
+        // Статус из нашей БД — вебхук от Finik обновит его когда придёт
+        return ResponseEntity.ok(Map.of(
+                "status", payment.getStatus().name(),
+                "subscriptionCreated", payment.getStatus() == Payment.PaymentStatus.SUCCESS
+        ));
+    }
+
     @GetMapping("/{paymentId}")
     public ResponseEntity<PaymentResponse> getPayment(
             @PathVariable String paymentId

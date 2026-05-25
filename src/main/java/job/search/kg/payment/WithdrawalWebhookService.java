@@ -1,8 +1,11 @@
 package job.search.kg.payment;
 
 import job.search.kg.dto.request.payment.FinikWebhookPayload;
+import job.search.kg.entity.PointsTransaction;
 import job.search.kg.entity.Withdrawal;
 import job.search.kg.entity.User;
+import job.search.kg.repo.PointsTransactionRepository;
+import job.search.kg.repo.UserRepository;
 import job.search.kg.repo.WithdrawalRepository;
 import job.search.kg.telegram.TelegramService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,8 @@ public class WithdrawalWebhookService {
     private static final DateTimeFormatter DATE_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private final WithdrawalRepository withdrawalRepository;
+    private final UserRepository userRepository;
+    private final PointsTransactionRepository pointsTransactionRepository;
     private final TelegramService telegramService;
 
     /**
@@ -103,6 +108,33 @@ public class WithdrawalWebhookService {
         withdrawal.setErrorMessage("Payment failed on provider side");
 
         log.warn("Withdrawal {} marked as FAILED", withdrawal.getId());
+
+        // Возвращаем баллы пользователю
+        if (withdrawal.getPointsTransactionId() != null) {
+            try {
+                PointsTransaction original = pointsTransactionRepository
+                        .findById(withdrawal.getPointsTransactionId())
+                        .orElse(null);
+                if (original != null) {
+                    int refundAmount = Math.abs(original.getAmount());
+                    User user = withdrawal.getUser();
+                    user.setBalance(user.getBalance() + refundAmount);
+                    userRepository.save(user);
+
+                    PointsTransaction refund = new PointsTransaction();
+                    refund.setUser(user);
+                    refund.setAmount(refundAmount);
+                    refund.setType(PointsTransaction.TransactionType.REFUND);
+                    refund.setDescription("Возврат баллов после неудачного вывода (webhook)");
+                    pointsTransactionRepository.save(refund);
+
+                    log.info("Refunded {} points to user {} for failed withdrawal {}",
+                            refundAmount, user.getTelegramId(), withdrawal.getId());
+                }
+            } catch (Exception e) {
+                log.error("Failed to refund points for withdrawal {}", withdrawal.getId(), e);
+            }
+        }
 
         // Отправляем уведомление пользователю
         sendFailureNotification(withdrawal);

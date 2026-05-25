@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -31,6 +32,28 @@ public class TelegramService {
         try {
             restTemplate.postForEntity(url, request, String.class);
             log.info("Message sent to user {}", chatId);
+        } catch (Exception e) {
+            log.error("Failed to send message to user {}: {}", chatId, e.getMessage());
+        }
+    }
+
+    public void sendMessageWithButton(Long chatId, String text, String buttonText, String buttonUrl) {
+        String url = TELEGRAM_API_URL + botToken + "/sendMessage";
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("chat_id", chatId);
+        request.put("text", text);
+        request.put("parse_mode", "HTML");
+
+        if (buttonText != null && buttonUrl != null) {
+            Map<String, Object> button = Map.of("text", buttonText, "url", buttonUrl);
+            Map<String, Object> keyboard = Map.of("inline_keyboard", List.of(List.of(button)));
+            request.put("reply_markup", keyboard);
+        }
+
+        try {
+            restTemplate.postForEntity(url, request, String.class);
+            log.info("Message with button sent to user {}", chatId);
         } catch (Exception e) {
             log.error("Failed to send message to user {}: {}", chatId, e.getMessage());
         }

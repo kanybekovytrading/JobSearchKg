@@ -42,12 +42,21 @@ public class FinikWebhookService {
             return; // Идемпотентность
         }
 
-        // Извлекаем PaymentId из fields
-        String paymentIdStr = (String) webhook.getFields().get("paymentId"); // adjust based on actual field
+        // Извлекаем PaymentId: пробуем fields["PaymentId"], fields["paymentId"], затем id
+        String paymentIdStr = extractPaymentId(webhook);
+        if (paymentIdStr == null) {
+            log.error("Cannot extract paymentId from webhook: id={}, transactionId={}, fields={}",
+                    webhook.getId(), webhook.getTransactionId(), webhook.getFields());
+            return;
+        }
 
-        Payment payment = paymentRepository
-                .findByPaymentId(paymentIdStr)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
+        Optional<Payment> paymentOpt = paymentRepository.findByPaymentId(paymentIdStr);
+        if (paymentOpt.isEmpty()) {
+            log.error("Payment not found for paymentId={} (webhook id={}, transactionId={})",
+                    paymentIdStr, webhook.getId(), webhook.getTransactionId());
+            return;
+        }
+        Payment payment = paymentOpt.get();
 
         // Обновляем статус
         payment.setTransactionId(webhook.getTransactionId());
@@ -85,5 +94,18 @@ public class FinikWebhookService {
         }
 
         paymentRepository.save(payment);
+    }
+
+    private String extractPaymentId(WebhookData webhook) {
+        if (webhook.getFields() != null) {
+            Object val = webhook.getFields().get("PaymentId");
+            if (val instanceof String s && !s.isBlank()) return s;
+            val = webhook.getFields().get("paymentId");
+            if (val instanceof String s && !s.isBlank()) return s;
+        }
+        if (webhook.getId() != null && !webhook.getId().isBlank()) {
+            return webhook.getId();
+        }
+        return null;
     }
 }

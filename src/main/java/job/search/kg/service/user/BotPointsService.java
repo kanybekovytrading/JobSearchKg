@@ -29,7 +29,7 @@ public class BotPointsService {
     // 5000 баллов = 250 сом (минимум на вывод)
     // 20000 баллов = 1000 сом (максимум на вывод)
     private static final int POINTS_PER_SOM = 20;              // 20 баллов = 1 сом
-    private static final int MIN_POINTS_FOR_WITHDRAWAL = 5000; // Минимум 5000 баллов = 250 сом
+    private static final int MIN_POINTS_FOR_WITHDRAWAL = 2000; // Минимум 5000 баллов = 250 сом
     private static final int MAX_WITHDRAWAL_SOMS = 1000;       // Максимум 1000 сом
     private final UserRepository userRepository;
     private final PointsTransactionRepository transactionRepository;
